@@ -1,7 +1,7 @@
 import { SignJWT, importPKCS8 } from "jose";
 
 export default async function handler(req, res) {
-  const { room = "*", name = "Guest", email = "" } = req.query;
+  const { room = "*", name = "Guest", email = "", password = "" } = req.query;
 
   const appId      = process.env.VITE_JAAS_APP_ID;
   const keyId      = process.env.VITE_JAAS_KEY_ID;
@@ -42,6 +42,10 @@ export default async function handler(req, res) {
         "sip-outbound-call": false,
         transcription: false,
         recording: false,
+      },
+      room: {
+        regex: false,
+        ...(password && { password }),
       },
     },
   })
