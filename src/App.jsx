@@ -1,9 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 
 // ─── Server Config ────────────────────────────────────────────────────────────
-// 🔧 TO SWITCH SERVERS: change this one line only.
-const JITSI_SERVER = import.meta.env.VITE_JITSI_SERVER || "meet.jit.si";
-const meetUrl = (room) => `https://${JITSI_SERVER}/${room}`;
+const JAAS_APP_ID = import.meta.env.VITE_JAAS_APP_ID || "";
+const meetUrl = (room) => `https://8x8.vc/${JAAS_APP_ID}/${room}`;
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 const adj = ["swift","amber","crystal","lunar","nova","solar","cosmic","echo","delta","zenith","prism","atlas"];
@@ -92,6 +91,7 @@ export default function App() {
   const [meetings, setMeetings]     = useState([]);
   const [recurring, setRecurring]   = useState([]);
   const [toast, setToast]           = useState(null);
+  const [joining, setJoining]       = useState(false);
   const iframeRef = useRef(null);
 
   useEffect(() => {
@@ -107,9 +107,22 @@ export default function App() {
     setTimeout(() => setToast(null), 2500);
   };
 
-  const joinMeeting = (room, title) => {
-    setActiveCall({ room: room.trim().replace(/\s+/g,"-").toLowerCase(), title: title||room });
-    setTab("call");
+  const joinMeeting = async (room, title, displayName) => {
+    const normalRoom = room.trim().replace(/\s+/g, "-").toLowerCase();
+    setJoining(true);
+    try {
+      const params = new URLSearchParams({ room: normalRoom, name: displayName || title || "Guest" });
+      const res = await fetch(`/api/token?${params}`);
+      if (!res.ok) throw new Error("token request failed");
+      const { token, error } = await res.json();
+      if (error) throw new Error(error);
+      setActiveCall({ room: normalRoom, title: title || room, token });
+      setTab("call");
+    } catch (e) {
+      showToast("Could not get meeting token — check JaaS env vars", "error");
+    } finally {
+      setJoining(false);
+    }
   };
   const endCall = () => { setActiveCall(null); setTab("quick"); };
 
@@ -232,7 +245,7 @@ export default function App() {
         </nav>
 
         <main style={{flex:1,overflowY:"auto",padding:"28px 32px",maxWidth:800}}>
-          {tab==="quick"     && <QuickJoin     onJoin={joinMeeting} onSave={saveRoom} onCopy={copyLink}/>}
+          {tab==="quick"     && <QuickJoin     onJoin={joinMeeting} onSave={saveRoom} onCopy={copyLink} joining={joining}/>}
           {tab==="recurring" && <RecurringTab  recurring={recurring} onAdd={addRecurring} onDelete={deleteRecurring} onJoin={joinMeeting} onCopy={copyLink} onShare={shareRecurring} showToast={showToast}/>}
           {tab==="schedule"  && <ScheduleTab   upcoming={upcoming} past={past} onAdd={addMeeting} onDelete={deleteMeeting} onJoin={joinMeeting} onCopy={copyLink} downloadIcs={downloadIcs} googleCalUrl={googleCalUrl} outlookCalUrl={outlookCalUrl}/>}
           {tab==="saved"     && <SavedTab      rooms={savedRooms} onJoin={joinMeeting} onDelete={deleteRoom} onCopy={copyLink}/>}
@@ -244,7 +257,7 @@ export default function App() {
 }
 
 // ─── Quick Join ───────────────────────────────────────────────────────────────
-function QuickJoin({ onJoin, onSave, onCopy }) {
+function QuickJoin({ onJoin, onSave, onCopy, joining }) {
   const [room, setRoom] = useState(randomRoom());
   const [name, setName] = useState("");
   const [label, setLabel] = useState("");
@@ -260,8 +273,8 @@ function QuickJoin({ onJoin, onSave, onCopy }) {
         <Label>Display name (optional)</Label>
         <input value={name} onChange={e=>setName(e.target.value)} style={{...input,marginBottom:24}} placeholder="Your name"/>
         <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
-          <button onClick={()=>onJoin(room,name||room)} style={primaryBtn} className="action-btn">
-            <Icon d={ICONS.video} size={16} stroke="#fff"/> {name?`Join as ${name}`:"Join Meeting"}
+          <button onClick={()=>onJoin(room, name||room, name)} disabled={joining} style={{...primaryBtn, opacity: joining ? .6 : 1}} className="action-btn">
+            <Icon d={ICONS.video} size={16} stroke="#fff"/> {joining ? "Joining…" : name ? `Join as ${name}` : "Join Meeting"}
           </button>
           <button onClick={()=>onCopy(room)} style={ghostBtn} className="action-btn">
             <Icon d={ICONS.copy} size={15}/> Copy Link
@@ -351,7 +364,7 @@ function RecurringTab({ recurring, onAdd, onDelete, onJoin, onCopy, onShare, sho
                       {FREQ_LABELS[r.freq]||r.freq}
                     </span>
                   </div>
-                  <p style={{fontSize:11,color:"#475569"}}>{JITSI_SERVER}/{r.room}</p>
+                  <p style={{fontSize:11,color:"#475569"}}>8x8.vc/{JAAS_APP_ID}/{r.room}</p>
                   {r.notes && <p style={{fontSize:11,color:"#64748b",marginTop:2,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{r.notes}</p>}
                 </div>
                 <div style={{display:"flex",gap:6,flexShrink:0,alignItems:"center"}}>
@@ -501,7 +514,7 @@ function SavedTab({ rooms, onJoin, onDelete, onCopy }) {
                 </div>
                 <div style={{flex:1,minWidth:0}}>
                   <p style={{fontWeight:600,fontSize:14}}>{r.label}</p>
-                  <p style={{fontSize:11,color:"#475569",marginTop:1}}>{JITSI_SERVER}/{r.room}</p>
+                  <p style={{fontSize:11,color:"#475569",marginTop:1}}>8x8.vc/{JAAS_APP_ID}/{r.room}</p>
                 </div>
                 <div style={{display:"flex",gap:6}}>
                   <button onClick={()=>onCopy(r.room)} style={icoBtn} title="Copy"><Icon d={ICONS.copy} size={14}/></button>
@@ -518,7 +531,7 @@ function SavedTab({ rooms, onJoin, onDelete, onCopy }) {
 
 // ─── Call Tab ─────────────────────────────────────────────────────────────────
 function CallTab({ call, onEnd, iframeRef }) {
-  const url = meetUrl(call.room);
+  const url = `${meetUrl(call.room)}#jwt=${call.token}`;
   return (
     <div className="fade-up" style={{display:"flex",flexDirection:"column",height:"calc(100vh - 110px)"}}>
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
