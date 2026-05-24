@@ -267,7 +267,7 @@ export default function App() {
           ))}
         </nav>
 
-        <main style={{ flex: 1, overflowY: "auto", padding: "28px 32px", maxWidth: 800 }}>
+        <main style={{ flex: 1, overflowY: "auto", padding: "28px 32px" }}>
           {tab === "quick"     && <QuickJoin     onJoin={joinMeeting} onSave={saveRoom} onCopy={copyLink} joining={joining} />}
           {tab === "recurring" && <RecurringTab  recurring={recurring} onAdd={addRecurring} onDelete={deleteRecurring} onJoin={joinMeeting} onCopy={copyLink} onShare={shareRecurring} showToast={showToast} />}
           {tab === "schedule"  && <ScheduleTab   upcoming={upcoming} past={past} onAdd={addMeeting} onDelete={deleteMeeting} onJoin={joinMeeting} onCopy={copyLink} downloadIcs={downloadIcs} googleCalUrl={googleCalUrl} outlookCalUrl={outlookCalUrl} />}
@@ -582,7 +582,7 @@ function SavedTab({ rooms, onJoin, onDelete, onCopy }) {
 function CallTab({ call, onEnd, iframeRef }) {
   const url = `${meetUrl(call.room)}#jwt=${call.token}`;
   return (
-    <div className="fade-up" style={{ display: "flex", flexDirection: "column", height: "calc(100vh - 110px)" }}>
+    <div className="fade-up" style={{ display: "flex", flexDirection: "column", height: "calc(100vh - 160px)" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
         <div>
           <h2 style={{ fontFamily: "Syne", fontWeight: 700, fontSize: 20 }}>{call.title}</h2>
