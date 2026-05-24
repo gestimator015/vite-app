@@ -28,7 +28,7 @@ function Root() {
     <BrowserRouter>
       <Routes>
         <Route path="/join/:roomId" element={<GuestJoin />} />
-        <Route path="/*" element={<App />} />
+        <Route path="/*" element={<App user={session.user} />} />
       </Routes>
     </BrowserRouter>
   )

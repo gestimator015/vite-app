@@ -4,23 +4,8 @@ import { useState, useEffect, useCallback, useRef } from "react";
 const JAAS_APP_ID = import.meta.env.VITE_JAAS_APP_ID || "";
 const meetUrl = (room) => `https://8x8.vc/${JAAS_APP_ID}/${room}`;
 
-const THEME = {
-  bg:          "#ffffff",
-  bgSurface:   "#f8faf8",
-  bgInput:     "#f8faf8",
-  bgCard:      "#ffffff",
-  border:      "#d0e8d8",
-  borderCard:  "#e4ede4",
-  primary:     "#0F6E56",
-  primaryText: "#ffffff",
-  textMain:    "#1a2e1a",
-  textMuted:   "#4a6741",
-  textHint:    "#7a9e7a",
-  tabActive:   "rgba(15,110,86,.12)",
-  tabActiveText: "#0F6E56",
-  ghostBg:     "#f4faf7",
-  ghostBorder: "#c8e6d8",
-};
+import { THEME } from './theme.js'
+import { supabase } from './supabase'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 const CHARS = "abcdefghijklmnopqrstuvwxyz0123456789";
@@ -106,7 +91,7 @@ const ICONS = {
 };
 
 // ─── App ──────────────────────────────────────────────────────────────────────
-export default function App() {
+export default function App({ user }) {
   const [tab, setTab]             = useState("quick");
   const [activeCall, setActiveCall] = useState(null);
   const [savedRooms, setSavedRooms] = useState([]);
@@ -118,7 +103,12 @@ export default function App() {
 
   useEffect(() => {
     (async () => {
-      const s = await store.get("jitsi:saved");     if (s) setSavedRooms(s);
+      const { data: savedData } = await supabase
+        .from('saved_rooms')
+        .select('id, label, room_code')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+      setSavedRooms(savedData ?? []);
       const m = await store.get("jitsi:meetings");  if (m) setMeetings(m);
       const r = await store.get("jitsi:recurring"); if (r) setRecurring(r);
     })();
@@ -149,13 +139,25 @@ export default function App() {
   const endCall = () => { setActiveCall(null); setTab("quick"); };
 
   const saveRoom = useCallback(async (room, label) => {
-    const next = [{ id: Date.now(), room, label: label || room }, ...savedRooms].slice(0, 20);
-    setSavedRooms(next); await store.set("jitsi:saved", next); showToast("Room saved!");
+    const { data, error } = await supabase
+      .from('saved_rooms')
+      .insert({ user_id: user.id, label: label || room, room_code: room })
+      .select('id, label, room_code')
+      .single();
+    if (!error && data) {
+      setSavedRooms(prev => [data, ...prev].slice(0, 20));
+    }
   }, [savedRooms]);
 
   const deleteRoom = useCallback(async (id) => {
-    const next = savedRooms.filter(r => r.id !== id);
-    setSavedRooms(next); await store.set("jitsi:saved", next);
+    const { error } = await supabase
+      .from('saved_rooms')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', user.id);
+    if (!error) {
+      setSavedRooms(prev => prev.filter(r => r.id !== id));
+    }
   }, [savedRooms]);
 
   const addMeeting = useCallback(async (m) => {
@@ -564,11 +566,11 @@ function SavedTab({ rooms, onJoin, onDelete, onCopy }) {
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <p style={{ fontWeight: 600, fontSize: 14 }}>{r.label}</p>
-                  <p style={{ fontSize: 11, color: THEME.textHint, marginTop: 1 }}>8x8.vc/{JAAS_APP_ID}/{r.room}</p>
+                  <p style={{ fontSize: 11, color: THEME.textHint, marginTop: 1 }}>8x8.vc/{JAAS_APP_ID}/{r.room_code}</p>
                 </div>
                 <div style={{ display: "flex", gap: 6 }}>
-                  <button onClick={() => onCopy(r.room)} style={icoBtn} title="Copy invite link"><Icon d={ICONS.copy} size={14} /></button>
-                  <button onClick={() => onJoin(r.room, r.label)} style={{ ...icoBtn, color: "#38bdf8" }} title="Join"><Icon d={ICONS.arrow} size={14} /></button>
+                  <button onClick={() => onCopy(r.room_code)} style={icoBtn} title="Copy invite link"><Icon d={ICONS.copy} size={14} /></button>
+                  <button onClick={() => onJoin(r.room_code, r.label)} style={{ ...icoBtn, color: "#38bdf8" }} title="Join"><Icon d={ICONS.arrow} size={14} /></button>
                   <button onClick={() => onDelete(r.id)} style={{ ...icoBtn, color: "#ef4444" }} title="Remove"><Icon d={ICONS.trash} size={14} /></button>
                 </div>
               </div>
