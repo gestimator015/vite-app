@@ -50,19 +50,24 @@ function SetNewPassword({ onDone }) {
 
 function Root() {
   const [session, setSession] = useState(undefined)
+  const [recovery, setRecovery] = useState(false)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session)
     })
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => setSession(session)
+      (event, session) => {
+        if (event === 'PASSWORD_RECOVERY') setRecovery(true)
+        setSession(session)
+      }
     )
     return () => subscription.unsubscribe()
   }, [])
 
   if (session === undefined) return null
 
+  if (recovery) return <SetNewPassword onDone={() => setRecovery(false)} />
   if (!session) return <Auth />
 
   return (
