@@ -102,6 +102,7 @@ const ICONS = {
   repeat:   "M17 2l4 4-4 4M3 11V9a4 4 0 014-4h14M7 22l-4-4 4-4M21 13v2a4 4 0 01-4 4H3",
   share:    "M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13",
   lock:     "M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z",
+  external: "M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3",
 };
 
 // ─── App ──────────────────────────────────────────────────────────────────────
@@ -588,9 +589,14 @@ function CallTab({ call, onEnd, iframeRef }) {
           <h2 style={{ fontFamily: "Syne", fontWeight: 700, fontSize: 20 }}>{call.title}</h2>
           <a href={meetUrl(call.room)} target="_blank" rel="noreferrer" style={{ fontSize: 11, color: "#38bdf8", textDecoration: "none" }}>{meetUrl(call.room)} ↗</a>
         </div>
-        <button onClick={onEnd} style={{ background: "rgba(239,68,68,.12)", border: "1px solid rgba(239,68,68,.25)", color: "#fca5a5", borderRadius: 8, padding: "7px 16px", fontSize: 13, fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }} className="action-btn">
-          <Icon d={ICONS.x} size={14} stroke="#fca5a5" /> End Call
-        </button>
+        <div style={{ display: "flex", gap: 10 }}>
+          <button onClick={() => window.open(url, "_blank")} style={{ background: THEME.primary, border: "none", color: "#fff", borderRadius: 8, padding: "7px 16px", fontSize: 13, fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }} className="action-btn">
+            <Icon d={ICONS.external} size={14} stroke="#fff" /> Open fullscreen
+          </button>
+          <button onClick={onEnd} style={{ background: "rgba(239,68,68,.12)", border: "1px solid rgba(239,68,68,.25)", color: "#fca5a5", borderRadius: 8, padding: "7px 16px", fontSize: 13, fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }} className="action-btn">
+            <Icon d={ICONS.x} size={14} stroke="#fca5a5" /> End Call
+          </button>
+        </div>
       </div>
       <div style={{ flex: 1, borderRadius: 16, overflow: "hidden", border: "1px solid #1e293b" }}>
         <iframe ref={iframeRef} src={url} allow="camera; microphone; fullscreen; display-capture; autoplay" style={{ width: "100%", height: "100%", border: "none" }} title={call.title} />
