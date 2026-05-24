@@ -39,7 +39,7 @@ export default function Auth() {
           options: { data: { full_name: fullName } }
         })
         if (error) {
-          setError('Could not create account. Please try again.')
+          setError(error.message)
         } else {
           setSuccess('Check your email to confirm your account')
         }
