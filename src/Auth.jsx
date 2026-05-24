@@ -143,6 +143,17 @@ export default function Auth() {
             />
           </div>
           )}
+            {mode === 'signin' && (
+              <div style={{ textAlign: 'right', marginTop: -4, marginBottom: 20 }}>
+                <button
+                  type="button"
+                  onClick={() => { setMode('reset'); setError(''); setSuccess(''); }}
+                  style={{ background: 'none', border: 'none', color: THEME.primary, fontSize: 13, cursor: 'pointer', padding: 0 }}
+                >
+                  Forgot password?
+                </button>
+              </div>
+            )}
 
           {isRegister && (
             <div style={{ marginBottom: 24 }}>
@@ -184,9 +195,20 @@ export default function Auth() {
             }}
           >
             {loading
-              ? (isRegister ? 'Creating account…' : 'Signing in…')
-              : (isRegister ? 'Create account' : 'Sign in')}
+              ? (isRegister ? 'Creating account…' : mode === 'reset' ? 'Sending…' : 'Signing in…')
+              : (isRegister ? 'Create account' : mode === 'reset' ? 'Send reset link' : 'Sign in')}
           </button>
+            {mode === 'reset' && (
+              <div style={{ textAlign: 'center', marginTop: 16 }}>
+                <button
+                  type="button"
+                  onClick={() => { setMode('signin'); setError(''); setSuccess(''); }}
+                  style={{ background: 'none', border: 'none', color: THEME.primary, fontSize: 13, cursor: 'pointer', padding: 0 }}
+                >
+                  ← Back to sign in
+                </button>
+              </div>
+            )}
         </form>
       </div>
     </div>
