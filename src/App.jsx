@@ -109,7 +109,12 @@ export default function App({ user }) {
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
       setSavedRooms(savedData ?? []);
-      const m = await store.get("jitsi:meetings");  if (m) setMeetings(m);
+      const { data: meetData } = await supabase
+        .from('scheduled_meetings')
+        .select('id, title, room_code, scheduled_at, notes, room_password')
+        .eq('user_id', user.id)
+        .order('scheduled_at', { ascending: true });
+      setMeetings(meetData ?? []);
       const r = await store.get("jitsi:recurring"); if (r) setRecurring(r);
     })();
   }, []);
@@ -161,13 +166,37 @@ export default function App({ user }) {
   }, [savedRooms]);
 
   const addMeeting = useCallback(async (m) => {
-    const next = [m, ...meetings].sort((a, b) => new Date(a.time) - new Date(b.time)).slice(0, 50);
-    setMeetings(next); await store.set("jitsi:meetings", next); showToast("Meeting scheduled!");
+    const { data, error } = await supabase
+      .from('scheduled_meetings')
+      .insert({
+        user_id: user.id,
+        title: m.title,
+        room_code: m.room,
+        scheduled_at: m.time,
+        notes: m.notes,
+        room_password: m.password
+      })
+      .select('id, title, room_code, scheduled_at, notes, room_password')
+      .single();
+    if (!error && data) {
+      setMeetings(prev =>
+        [...prev, data]
+          .sort((a, b) => new Date(a.scheduled_at) - new Date(b.scheduled_at))
+          .slice(0, 50)
+      );
+      showToast("Meeting scheduled!");
+    }
   }, [meetings]);
 
   const deleteMeeting = useCallback(async (id) => {
-    const next = meetings.filter(m => m.id !== id);
-    setMeetings(next); await store.set("jitsi:meetings", next);
+    const { error } = await supabase
+      .from('scheduled_meetings')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', user.id);
+    if (!error) {
+      setMeetings(prev => prev.filter(m => m.id !== id));
+    }
   }, [meetings]);
 
   const addRecurring = useCallback(async (r) => {
@@ -198,8 +227,8 @@ export default function App({ user }) {
     }
   };
 
-  const upcoming = meetings.filter(m => new Date(m.time) > Date.now() - 300000).sort((a, b) => new Date(a.time) - new Date(b.time));
-  const past     = meetings.filter(m => new Date(m.time) <= Date.now() - 300000);
+  const upcoming = meetings.filter(m => new Date(m.scheduled_at) > Date.now() - 300000).sort((a, b) => new Date(a.scheduled_at) - new Date(b.scheduled_at));
+  const past     = meetings.filter(m => new Date(m.scheduled_at) <= Date.now() - 300000);
 
   return (
     <div style={{ minHeight: "100vh", background: THEME.bg, fontFamily: "'DM Sans','Segoe UI',sans-serif", color: THEME.textMain, display: "flex", flexDirection: "column" }}>
