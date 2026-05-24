@@ -590,9 +590,9 @@ function CallTab({ call, onEnd, iframeRef }) {
           <a href={meetUrl(call.room)} target="_blank" rel="noreferrer" style={{ fontSize: 11, color: "#38bdf8", textDecoration: "none" }}>{meetUrl(call.room)} ↗</a>
         </div>
         <div style={{ display: "flex", gap: 10 }}>
-          <button onClick={() => window.open(url, "_blank")} style={{ background: THEME.primary, border: "none", color: "#fff", borderRadius: 8, padding: "7px 16px", fontSize: 13, fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }} className="action-btn">
+          {/* <button onClick={() => window.open(url, "_blank")} style={{ background: THEME.primary, border: "none", color: "#fff", borderRadius: 8, padding: "7px 16px", fontSize: 13, fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }} className="action-btn">
             <Icon d={ICONS.external} size={14} stroke="#fff" /> Open fullscreen
-          </button>
+          </button> */}
           <button onClick={onEnd} style={{ background: "rgba(239,68,68,.12)", border: "1px solid rgba(239,68,68,.25)", color: "#fca5a5", borderRadius: 8, padding: "7px 16px", fontSize: 13, fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }} className="action-btn">
             <Icon d={ICONS.x} size={14} stroke="#fca5a5" /> End Call
           </button>
@@ -601,6 +601,7 @@ function CallTab({ call, onEnd, iframeRef }) {
       <div style={{ flex: 1, borderRadius: 16, overflow: "hidden", border: "1px solid #1e293b" }}>
         <iframe ref={iframeRef} src={url} allow="camera; microphone; fullscreen; display-capture; autoplay" style={{ width: "100%", height: "100%", border: "none" }} title={call.title} />
       </div>
+      <p style={{ fontSize: 11, color: THEME.textMuted, textAlign: "center", marginTop: 8 }}>Tip: press F or double-click the video for fullscreen</p>
     </div>
   );
 }
