@@ -1,0 +1,17 @@
+export const THEME = {
+  bg:           "#ffffff",
+  bgSurface:    "#f8faf8",
+  bgInput:      "#f8faf8",
+  bgCard:       "#ffffff",
+  border:       "#d0e8d8",
+  borderCard:   "#e4ede4",
+  primary:      "#0F6E56",
+  primaryText:  "#ffffff",
+  textMain:     "#1a2e1a",
+  textMuted:    "#4a6741",
+  textHint:     "#7a9e7a",
+  tabActive:    "rgba(15,110,86,.12)",
+  tabActiveText:"#0F6E56",
+  ghostBg:      "#f4faf7",
+  ghostBorder:  "#c8e6d8",
+};
