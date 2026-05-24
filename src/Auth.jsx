@@ -43,13 +43,22 @@ export default function Auth() {
         } else {
           setSuccess('Check your email to confirm your account')
         }
-      } else {
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password
-        })
-        if (error) setError('Invalid email or password')
-      }
+      } else if (mode === 'reset') {
+          const { error } = await supabase.auth.resetPasswordForEmail(email, {
+            redirectTo: window.location.origin
+          })
+          if (error) {
+            setError(error.message)
+          } else {
+            setSuccess('Password reset link sent — check your email')
+          }
+        } else {
+          const { error } = await supabase.auth.signInWithPassword({
+            email,
+            password
+          })
+          if (error) setError('Invalid email or password')
+        }
     } finally {
       setLoading(false)
     }
@@ -120,6 +129,7 @@ export default function Auth() {
             />
           </div>
 
+          {mode !== 'reset' && (
           <div style={{ marginBottom: isRegister ? 16 : 24 }}>
             <label style={labelStyle}>Password</label>
             <input
@@ -132,6 +142,7 @@ export default function Auth() {
               style={inputStyle}
             />
           </div>
+          )}
 
           {isRegister && (
             <div style={{ marginBottom: 24 }}>

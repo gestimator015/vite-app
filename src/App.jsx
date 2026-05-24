@@ -32,19 +32,19 @@ const timeUntil = (iso) => {
 // ─── Calendar Helpers ─────────────────────────────────────────────────────────
 const toCalDate = (iso) => new Date(iso).toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
 const googleCalUrl = (m) => {
-  const s = toCalDate(m.time), e = toCalDate(new Date(new Date(m.time).getTime() + 3600000).toISOString());
-  return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(m.title)}&dates=${s}/${e}&details=${encodeURIComponent(`Join at ${meetUrl(m.room)}\n\n${m.notes || ""}`)}&location=${encodeURIComponent(meetUrl(m.room))}`;
+  const s = toCalDate(m.scheduled_at), e = toCalDate(new Date(new Date(m.scheduled_at).getTime() + 3600000).toISOString());
+  return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(m.title)}&dates=${s}/${e}&details=${encodeURIComponent(`Join at ${meetUrl(m.room_code)}\n\n${m.notes || ""}`)}&location=${encodeURIComponent(meetUrl(m.room_code))}`;
 };
 const outlookCalUrl = (m) => {
-  const s = new Date(m.time).toISOString(), e = new Date(new Date(m.time).getTime() + 3600000).toISOString();
-  return `https://outlook.live.com/calendar/0/deeplink/compose?subject=${encodeURIComponent(m.title)}&startdt=${s}&enddt=${e}&body=${encodeURIComponent(`Join at ${meetUrl(m.room)}\n\n${m.notes || ""}`)}&location=${encodeURIComponent(meetUrl(m.room))}`;
+  const s = new Date(m.scheduled_at).toISOString(), e = new Date(new Date(m.scheduled_at).getTime() + 3600000).toISOString();
+  return `https://outlook.live.com/calendar/0/deeplink/compose?subject=${encodeURIComponent(m.title)}&startdt=${s}&enddt=${e}&body=${encodeURIComponent(`Join at ${meetUrl(m.room_code)}\n\n${m.notes || ""}`)}&location=${encodeURIComponent(meetUrl(m.room_code))}`;
 };
 const downloadIcs = (m) => {
-  const s = toCalDate(m.time), e = toCalDate(new Date(new Date(m.time).getTime() + 3600000).toISOString());
+  const s = toCalDate(m.scheduled_at), e = toCalDate(new Date(new Date(m.scheduled_at).getTime() + 3600000).toISOString());
   const content = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//MeetHub//EN", "BEGIN:VEVENT",
     `DTSTART:${s}`, `DTEND:${e}`, `SUMMARY:${m.title}`,
-    `DESCRIPTION:Join at ${meetUrl(m.room)}\\n\\n${m.notes || ""}`,
-    `LOCATION:${meetUrl(m.room)}`, `UID:${m.id}@meethub`,
+    `DESCRIPTION:Join at ${meetUrl(m.room_code)}\\n\\n${m.notes || ""}`,
+    `LOCATION:${meetUrl(m.room_code)}`, `UID:${m.id}@meethub`,
     "END:VEVENT", "END:VCALENDAR"].join("\r\n");
   const blob = new Blob([content], { type: "text/calendar;charset=utf-8" });
   const url = URL.createObjectURL(blob);
@@ -52,11 +52,6 @@ const downloadIcs = (m) => {
   URL.revokeObjectURL(url);
 };
 
-// ─── Storage ──────────────────────────────────────────────────────────────────
-const store = {
-  async get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
-  async set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
-};
 
 // ─── Recurring / frequency config ─────────────────────────────────────────────
 const FREQ_LABELS  = { daily: "Daily", weekly: "Weekly", biweekly: "Bi-weekly", monthly: "Monthly", custom: "Custom" };
@@ -88,7 +83,114 @@ const ICONS = {
   share:    "M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13",
   lock:     "M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z",
   external: "M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3",
+  settings: "M12 15a3 3 0 100-6 3 3 0 000 6zM19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z",
 };
+
+// ─── SettingsTab ──────────────────────────────────────────────────────────────
+function SettingsTab({ user, showToast }) {
+  const [loading,    setLoading]    = useState(true);
+  const [factor,     setFactor]     = useState(null);
+  const [enrollData, setEnrollData] = useState(null);
+  const [code,       setCode]       = useState('');
+  const [busy,       setBusy]       = useState(false);
+
+  useEffect(() => {
+    async function check() {
+      const { data } = await supabase.auth.mfa.listFactors();
+      setFactor(data?.totp?.find(f => f.status === 'verified') ?? null);
+      setLoading(false);
+    }
+    check();
+  }, []);
+
+  async function startEnroll() {
+    setBusy(true);
+    const { data, error } = await supabase.auth.mfa.enroll({ factorType: 'totp' });
+    if (error || !data) { showToast('Could not start 2FA setup'); setBusy(false); return; }
+    setEnrollData({ factorId: data.id, qrCode: data.totp.qr_code, secret: data.totp.secret });
+    setBusy(false);
+  }
+
+  async function verify() {
+    if (code.length !== 6) return;
+    setBusy(true);
+    const { error } = await supabase.auth.mfa.challengeAndVerify({ factorId: enrollData.factorId, code });
+    if (error) { showToast('Invalid code — try again'); setBusy(false); return; }
+    const { data } = await supabase.auth.mfa.listFactors();
+    setFactor(data?.totp?.find(f => f.status === 'verified') ?? null);
+    setEnrollData(null);
+    setCode('');
+    setBusy(false);
+    showToast('2FA enabled!');
+  }
+
+  async function disable() {
+    setBusy(true);
+    const { error } = await supabase.auth.mfa.unenroll({ factorId: factor.id });
+    if (error) { showToast('Could not disable 2FA'); setBusy(false); return; }
+    setFactor(null);
+    setBusy(false);
+    showToast('2FA disabled');
+  }
+
+  const card     = { background: 'rgba(255,255,255,.03)', border: '1px solid rgba(255,255,255,.08)', borderRadius: 14, padding: '24px 28px', marginBottom: 16, maxWidth: 480 };
+  const lbl      = { fontSize: 12, color: THEME.textHint, marginBottom: 6 };
+  const btn      = (bg = '#0ea5e9') => ({ fontSize: 13, fontWeight: 600, background: bg, color: '#fff', border: 'none', borderRadius: 8, padding: '8px 18px', cursor: busy ? 'default' : 'pointer', opacity: busy ? 0.6 : 1 });
+  const ghostBtn = { fontSize: 13, color: THEME.textHint, background: 'none', border: '1px solid rgba(255,255,255,.12)', borderRadius: 8, padding: '8px 18px', cursor: 'pointer' };
+  const inp      = { width: '100%', background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.1)', borderRadius: 8, padding: '10px 14px', color: THEME.textMain, fontSize: 20, letterSpacing: 8, textAlign: 'center', outline: 'none', boxSizing: 'border-box' };
+
+  if (loading) return <div style={{ color: THEME.textHint, padding: 32 }}>Loading…</div>;
+
+  return (
+    <div style={{ maxWidth: 560 }}>
+      <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 24, color: THEME.textMain }}>Settings</h2>
+
+      <div style={card}>
+        <p style={{ fontSize: 13, fontWeight: 600, color: THEME.textMain, marginBottom: 4 }}>Account</p>
+        <p style={{ fontSize: 13, color: THEME.textHint }}>{user.email}</p>
+      </div>
+
+      <div style={card}>
+        <p style={{ fontSize: 13, fontWeight: 600, color: THEME.textMain, marginBottom: 4 }}>Two-factor authentication</p>
+        <p style={{ ...lbl, marginBottom: 16 }}>Add a second layer of security using an authenticator app (Ente Auth, Google Authenticator, Authy).</p>
+
+        {!factor && !enrollData && (
+          <button style={btn()} onClick={startEnroll} disabled={busy}>
+            {busy ? 'Setting up…' : 'Enable 2FA'}
+          </button>
+        )}
+
+        {enrollData && (
+          <div>
+            <p style={{ ...lbl, marginBottom: 12 }}>Scan this QR code with your authenticator app:</p>
+            <img src={enrollData.qrCode} alt="2FA QR code" style={{ width: 160, height: 160, borderRadius: 8, marginBottom: 16, display: 'block' }} />
+            <p style={{ ...lbl, marginBottom: 4 }}>Or enter this secret manually:</p>
+            <p style={{ fontSize: 12, fontFamily: 'monospace', color: THEME.textMain, background: 'rgba(255,255,255,.06)', padding: '6px 10px', borderRadius: 6, marginBottom: 20, wordBreak: 'break-all' }}>{enrollData.secret}</p>
+            <p style={{ ...lbl, marginBottom: 8 }}>Enter the 6-digit code from your app to confirm:</p>
+            <input style={inp} type="text" inputMode="numeric" maxLength={6} placeholder="000000" value={code} onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))} />
+            <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
+              <button style={btn()} onClick={verify} disabled={busy || code.length !== 6}>
+                {busy ? 'Verifying…' : 'Verify & Enable'}
+              </button>
+              <button style={ghostBtn} onClick={() => { setEnrollData(null); setCode(''); }} disabled={busy}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
+        {factor && !enrollData && (
+          <div>
+            <p style={{ fontSize: 13, color: '#34d399', marginBottom: 14 }}>✓ 2FA is enabled</p>
+            <button style={btn('#ef4444')} onClick={disable} disabled={busy}>
+              {busy ? 'Disabling…' : 'Disable 2FA'}
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 // ─── App ──────────────────────────────────────────────────────────────────────
 export default function App({ user }) {
@@ -115,7 +217,12 @@ export default function App({ user }) {
         .eq('user_id', user.id)
         .order('scheduled_at', { ascending: true });
       setMeetings(meetData ?? []);
-      const r = await store.get("jitsi:recurring"); if (r) setRecurring(r);
+      const { data: recurData } = await supabase
+        .from('recurring_meetings')
+        .select('id, title, room_code, frequency, notes, room_password, created_at')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+      setRecurring(recurData ?? []);
     })();
   }, []);
 
@@ -200,13 +307,33 @@ export default function App({ user }) {
   }, [meetings]);
 
   const addRecurring = useCallback(async (r) => {
-    const next = [r, ...recurring];
-    setRecurring(next); await store.set("jitsi:recurring", next); showToast("Recurring meeting created!");
+    const { data, error } = await supabase
+      .from('recurring_meetings')
+      .insert({
+        user_id: user.id,
+        title: r.title,
+        room_code: r.room,
+        frequency: r.freq,
+        notes: r.notes,
+        room_password: r.password
+      })
+      .select('id, title, room_code, frequency, notes, room_password, created_at')
+      .single();
+    if (!error && data) {
+      setRecurring(prev => [data, ...prev]);
+      showToast("Recurring meeting created!");
+    }
   }, [recurring]);
 
   const deleteRecurring = useCallback(async (id) => {
-    const next = recurring.filter(r => r.id !== id);
-    setRecurring(next); await store.set("jitsi:recurring", next);
+    const { error } = await supabase
+      .from('recurring_meetings')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', user.id);
+    if (!error) {
+      setRecurring(prev => prev.filter(r => r.id !== id));
+    }
   }, [recurring]);
 
   // Copies a /join/ invite link with optional password in the hash
@@ -271,15 +398,23 @@ export default function App({ user }) {
           <span style={{ fontFamily: "Syne", fontWeight: 700, fontSize: 17 }}>MeetHub</span>
           <span style={{ fontSize: 11, color: THEME.textHint, marginLeft: 2 }}>· Jitsi</span>
         </div>
-        {activeCall && (
-          <div style={{ display: "flex", alignItems: "center", gap: 8, background: "rgba(239,68,68,.12)", border: "1px solid rgba(239,68,68,.25)", borderRadius: 8, padding: "5px 12px", fontSize: 12, color: "#fca5a5" }}>
-            <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#ef4444" }} className="pulse" />
-            Live · {activeCall.title}
-            <button onClick={endCall} style={{ color: "#fca5a5", marginLeft: 4, display: "flex" }}>
-              <Icon d={ICONS.x} size={13} />
-            </button>
-          </div>
-        )}
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          {activeCall && (
+            <div style={{ display: "flex", alignItems: "center", gap: 8, background: "rgba(239,68,68,.12)", border: "1px solid rgba(239,68,68,.25)", borderRadius: 8, padding: "5px 12px", fontSize: 12, color: "#fca5a5" }}>
+              <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#ef4444" }} className="pulse" />
+              Live · {activeCall.title}
+              <button onClick={endCall} style={{ color: "#fca5a5", marginLeft: 4, display: "flex" }}>
+                <Icon d={ICONS.x} size={13} />
+              </button>
+            </div>
+          )}
+          <button
+            onClick={() => supabase.auth.signOut()}
+            style={{ fontSize: 12, color: THEME.textHint, background: "none", border: "1px solid rgba(255,255,255,.1)", borderRadius: 6, cursor: "pointer", padding: "4px 10px" }}
+          >
+            Sign out
+          </button>
+        </div>
       </header>
 
       <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
@@ -288,7 +423,8 @@ export default function App({ user }) {
             { id: "quick",     icon: ICONS.video,    label: "Quick Join" },
             { id: "recurring", icon: ICONS.repeat,   label: "Recurring" },
             { id: "schedule",  icon: ICONS.calendar, label: "Schedule" },
-            { id: "saved",     icon: ICONS.bookmark, label: "Saved Rooms" },
+            { id: "saved",     icon: ICONS.bookmark,  label: "Saved Rooms" },
+            { id: "settings",  icon: ICONS.settings,  label: "Settings" },
             ...(activeCall ? [{ id: "call", icon: ICONS.link, label: "Active Call" }] : []),
           ].map(({ id, icon, label }) => (
             <button key={id} onClick={() => setTab(id)} title={label} className="tab-btn"
@@ -304,6 +440,7 @@ export default function App({ user }) {
           {tab === "recurring" && <RecurringTab  recurring={recurring} onAdd={addRecurring} onDelete={deleteRecurring} onJoin={joinMeeting} onCopy={copyLink} onShare={shareRecurring} showToast={showToast} />}
           {tab === "schedule"  && <ScheduleTab   upcoming={upcoming} past={past} onAdd={addMeeting} onDelete={deleteMeeting} onJoin={joinMeeting} onCopy={copyLink} downloadIcs={downloadIcs} googleCalUrl={googleCalUrl} outlookCalUrl={outlookCalUrl} />}
           {tab === "saved"     && <SavedTab      rooms={savedRooms} onJoin={joinMeeting} onDelete={deleteRoom} onCopy={copyLink} />}
+          {tab === "settings" && <SettingsTab user={user} showToast={showToast} />}
           {tab === "call" && activeCall && <CallTab call={activeCall} onEnd={endCall} iframeRef={iframeRef} />}
         </main>
       </div>
@@ -423,20 +560,20 @@ function RecurringTab({ recurring, onAdd, onDelete, onJoin, onCopy, onShare, sho
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 3, flexWrap: "wrap" }}>
                     <p style={{ fontWeight: 600, fontSize: 15 }}>{r.title}</p>
-                    <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 8px", borderRadius: 20, background: FREQ_COLORS[r.freq] || FREQ_COLORS.custom, border: `1px solid ${FREQ_BORDERS[r.freq] || FREQ_BORDERS.custom}`, color: FREQ_TEXT[r.freq] || FREQ_TEXT.custom }}>
-                      {FREQ_LABELS[r.freq] || r.freq}
+                    <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 8px", borderRadius: 20, background: FREQ_COLORS[r.frequency] || FREQ_COLORS.custom, border: `1px solid ${FREQ_BORDERS[r.frequency] || FREQ_BORDERS.custom}`, color: FREQ_TEXT[r.frequency] || FREQ_TEXT.custom }}>
+                      {FREQ_LABELS[r.frequency] || r.frequency}
                     </span>
-                    {r.password && <span style={{ fontSize: 10, color: THEME.textMuted, display: "flex", alignItems: "center", gap: 3 }}><Icon d={ICONS.lock} size={11} stroke={THEME.textMuted} /> password</span>}
+                    {r.room_password && <span style={{ fontSize: 10, color: THEME.textMuted, display: "flex", alignItems: "center", gap: 3 }}><Icon d={ICONS.lock} size={11} stroke={THEME.textMuted} /> password</span>}
                   </div>
-                  <p style={{ fontSize: 11, color: THEME.textHint }}>8x8.vc/{JAAS_APP_ID}/{r.room}</p>
+                  <p style={{ fontSize: 11, color: THEME.textHint }}>8x8.vc/{JAAS_APP_ID}/{r.room_code}</p>
                   {r.notes && <p style={{ fontSize: 11, color: THEME.textMuted, marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.notes}</p>}
                 </div>
                 <div style={{ display: "flex", gap: 6, flexShrink: 0, alignItems: "center" }}>
-                  <button onClick={() => onCopy(r.room, r.password)} style={icoBtn} title="Copy invite link"><Icon d={ICONS.copy} size={14} /></button>
-                  <button onClick={() => onShare(r.room, r.title, r.password)} style={{ ...icoBtn, color: "#38bdf8", borderColor: "rgba(56,189,248,.25)", background: "rgba(56,189,248,.08)" }} title="Share">
+                  <button onClick={() => onCopy(r.room_code, r.room_password)} style={icoBtn} title="Copy invite link"><Icon d={ICONS.copy} size={14} /></button>
+                  <button onClick={() => onShare(r.room_code, r.title, r.room_password)} style={{ ...icoBtn, color: "#38bdf8", borderColor: "rgba(56,189,248,.25)", background: "rgba(56,189,248,.08)" }} title="Share">
                     <Icon d={ICONS.share} size={14} />
                   </button>
-                  <button onClick={() => onJoin(r.room, r.title)} style={{ ...icoBtn, color: "#38bdf8" }} title="Join now"><Icon d={ICONS.arrow} size={14} /></button>
+                  <button onClick={() => onJoin(r.room_code, r.title)} style={{ ...icoBtn, color: "#38bdf8" }} title="Join now"><Icon d={ICONS.arrow} size={14} /></button>
                   <button onClick={() => onDelete(r.id)} style={{ ...icoBtn, color: "#ef4444" }} title="Delete"><Icon d={ICONS.trash} size={14} /></button>
                 </div>
               </div>
@@ -537,15 +674,15 @@ function ScheduleTab({ upcoming, past, onAdd, onDelete, onJoin, onCopy, download
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 2 }}>
                   <p style={{ fontWeight: 600, fontSize: 14 }}>{m.title}</p>
-                  {m.password && <span style={{ fontSize: 10, color: THEME.textMuted, display: "flex", alignItems: "center", gap: 3 }}><Icon d={ICONS.lock} size={11} stroke={THEME.textMuted} /> password</span>}
+                  {m.room_password && <span style={{ fontSize: 10, color: THEME.textMuted, display: "flex", alignItems: "center", gap: 3 }}><Icon d={ICONS.lock} size={11} stroke={THEME.textMuted} /> password</span>}
                 </div>
-                <p style={{ fontSize: 12, color: THEME.textMuted }}>{fmt(m.time)}<span style={{ color: "#0ea5e9", marginLeft: 8 }}>{timeUntil(m.time)}</span></p>
+                <p style={{ fontSize: 12, color: THEME.textMuted }}>{fmt(m.scheduled_at)}<span style={{ color: "#0ea5e9", marginLeft: 8 }}>{timeUntil(m.scheduled_at)}</span></p>
                 {m.notes && <p style={{ fontSize: 11, color: THEME.textHint, marginTop: 3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{m.notes}</p>}
               </div>
               <div style={{ display: "flex", gap: 6, flexShrink: 0, alignItems: "center" }}>
-                <button onClick={() => onCopy(m.room, m.password)} style={icoBtn} title="Copy invite link"><Icon d={ICONS.copy} size={14} /></button>
+                <button onClick={() => onCopy(m.room_code, m.room_password)} style={icoBtn} title="Copy invite link"><Icon d={ICONS.copy} size={14} /></button>
                 <CalendarMenu m={m} downloadIcs={downloadIcs} googleCalUrl={googleCalUrl} outlookCalUrl={outlookCalUrl} />
-                <button onClick={() => onJoin(m.room, m.title)} style={{ ...icoBtn, color: "#38bdf8" }} title="Join"><Icon d={ICONS.arrow} size={14} /></button>
+                <button onClick={() => onJoin(m.room_code, m.title)} style={{ ...icoBtn, color: "#38bdf8" }} title="Join"><Icon d={ICONS.arrow} size={14} /></button>
                 <button onClick={() => onDelete(m.id)} style={{ ...icoBtn, color: "#ef4444" }} title="Delete"><Icon d={ICONS.trash} size={14} /></button>
               </div>
             </div>
@@ -563,10 +700,10 @@ function ScheduleTab({ upcoming, past, onAdd, onDelete, onJoin, onCopy, download
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <p style={{ fontWeight: 600, fontSize: 14 }}>{m.title}</p>
-                <p style={{ fontSize: 12, color: THEME.textMuted }}>{fmt(m.time)}</p>
+                <p style={{ fontSize: 12, color: THEME.textMuted }}>{fmt(m.scheduled_at)}</p>
               </div>
               <div style={{ display: "flex", gap: 6 }}>
-                <button onClick={() => onJoin(m.room, m.title)} style={{ ...icoBtn, color: "#38bdf8" }} title="Join again"><Icon d={ICONS.arrow} size={14} /></button>
+                <button onClick={() => onJoin(m.room_code, m.title)} style={{ ...icoBtn, color: "#38bdf8" }} title="Join again"><Icon d={ICONS.arrow} size={14} /></button>
                 <button onClick={() => onDelete(m.id)} style={{ ...icoBtn, color: "#ef4444" }} title="Delete"><Icon d={ICONS.trash} size={14} /></button>
               </div>
             </div>
