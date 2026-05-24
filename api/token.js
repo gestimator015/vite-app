@@ -7,8 +7,13 @@ export default async function handler(req, res) {
   const keyId      = process.env.VITE_JAAS_KEY_ID;
   const rawKey     = process.env.JAAS_PRIVATE_KEY;
 
-  if (!appId || !keyId || !rawKey) {
-    return res.status(500).json({ error: "JaaS environment variables not configured" });
+  const missing = [
+    !appId  && "VITE_JAAS_APP_ID",
+    !keyId  && "VITE_JAAS_KEY_ID",
+    !rawKey && "JAAS_PRIVATE_KEY",
+  ].filter(Boolean);
+  if (missing.length) {
+    return res.status(500).json({ error: "Missing environment variables", missing });
   }
 
   // Vercel stores multi-line secrets with literal \n — restore real newlines
