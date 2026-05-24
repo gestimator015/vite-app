@@ -68,23 +68,25 @@ export default function GuestJoin() {
 
   // ── Join page ─────────────────────────────────────────────────────────────
   const displayRoom = roomId.startsWith("mh-") ? roomId.slice(3) : roomId;
+  const canSubmit = !joining && !!name.trim();
 
   return (
     <div style={{
       minHeight: "100vh",
-      background: "radial-gradient(ellipse at 50% 0%, #0f172a 0%, #0b0f19 65%)",
+      background: "#ffffff",
       display: "flex", flexDirection: "column",
       alignItems: "center", justifyContent: "center",
-      fontFamily: "'DM Sans','Segoe UI',sans-serif", color: "#e2e8f0",
+      fontFamily: "'DM Sans','Segoe UI',sans-serif", color: "#1a2e1a",
       padding: "24px",
     }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Syne:wght@700;800&display=swap');
         *{box-sizing:border-box;margin:0;padding:0;}
+        body{background:#ffffff;}
         input{outline:none;}
-        .gi:focus{border-color:#38bdf8!important;box-shadow:0 0 0 3px rgba(56,189,248,.08)!important;}
+        .gi:focus{border-color:#0F6E56!important;box-shadow:0 0 0 3px rgba(15,110,86,.1)!important;}
         .jbtn{transition:all .2s;}
-        .jbtn:hover:not(:disabled){filter:brightness(1.1);transform:translateY(-1px);}
+        .jbtn:hover:not(:disabled){filter:brightness(1.08);transform:translateY(-1px);}
         @keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
         .fu{animation:fadeUp .4s ease forwards;}
         @keyframes spin{to{transform:rotate(360deg)}}
@@ -97,32 +99,32 @@ export default function GuestJoin() {
         <div style={{ textAlign: "center", marginBottom: 36 }}>
           <div style={{
             width: 52, height: 52, borderRadius: 16,
-            background: "linear-gradient(135deg,#0ea5e9,#6366f1)",
+            background: "#0F6E56",
             display: "flex", alignItems: "center", justifyContent: "center",
             margin: "0 auto 14px",
-            boxShadow: "0 12px 40px rgba(14,165,233,.35)",
+            boxShadow: "0 12px 40px rgba(15,110,86,.25)",
           }}>
             <Icon d={I.video} size={24} stroke="#fff" />
           </div>
-          <div style={{ fontFamily: "Syne", fontWeight: 800, fontSize: 22, letterSpacing: ".3px" }}>MeetHub</div>
-          <p style={{ color: "#64748b", fontSize: 13, marginTop: 4 }}>You've been invited to a meeting</p>
+          <div style={{ fontFamily: "Syne", fontWeight: 800, fontSize: 22, letterSpacing: ".3px", color: "#1a2e1a" }}>MeetHub</div>
+          <p style={{ color: "#4a6741", fontSize: 13, marginTop: 4 }}>You've been invited to a meeting</p>
         </div>
 
         {/* Card */}
         <div style={{
-          background: "#111827", border: "1px solid #1e293b",
+          background: "#f8faf8", border: "1px solid #d0e8d8",
           borderRadius: 20, padding: "32px 28px",
-          boxShadow: "0 32px 80px rgba(0,0,0,.5)",
+          boxShadow: "0 8px 40px rgba(15,110,86,.08)",
         }}>
           {/* Room badge */}
           <div style={{
             display: "flex", alignItems: "center", gap: 8,
-            background: "rgba(56,189,248,.07)", border: "1px solid rgba(56,189,248,.18)",
+            background: "rgba(15,110,86,.07)", border: "1px solid rgba(15,110,86,.2)",
             borderRadius: 10, padding: "9px 14px", marginBottom: 28,
           }}>
-            <Icon d={I.video} size={14} stroke="#38bdf8" />
-            <span style={{ fontSize: 11, color: "#475569", fontWeight: 600, textTransform: "uppercase", letterSpacing: ".06em" }}>Room</span>
-            <code style={{ fontSize: 13, color: "#38bdf8", fontFamily: "monospace", letterSpacing: ".04em", wordBreak: "break-all" }}>
+            <Icon d={I.video} size={14} stroke="#0F6E56" />
+            <span style={{ fontSize: 11, color: "#4a6741", fontWeight: 600, textTransform: "uppercase", letterSpacing: ".06em" }}>Room</span>
+            <code style={{ fontSize: 13, color: "#0F6E56", fontFamily: "monospace", letterSpacing: ".04em", wordBreak: "break-all" }}>
               {displayRoom}
             </code>
           </div>
@@ -131,7 +133,7 @@ export default function GuestJoin() {
             {/* Name */}
             <FieldLabel>Your name</FieldLabel>
             <div style={{ position: "relative", marginBottom: 16 }}>
-              <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#475569", pointerEvents: "none" }}>
+              <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#4a6741", pointerEvents: "none" }}>
                 <Icon d={I.user} size={15} />
               </span>
               <input
@@ -141,15 +143,15 @@ export default function GuestJoin() {
                 placeholder="Enter your name"
                 required
                 className="gi"
-                style={inputStyle("#1e293b")}
+                style={inputStyle("#d0e8d8")}
               />
             </div>
 
             {/* Password */}
             <FieldLabel optional>Meeting password</FieldLabel>
             <div style={{ position: "relative", marginBottom: 28 }}>
-              <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: autoFilled ? "#38bdf8" : "#475569", pointerEvents: "none" }}>
-                <Icon d={I.lock} size={15} stroke={autoFilled ? "#38bdf8" : "currentColor"} />
+              <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: autoFilled ? "#0F6E56" : "#4a6741", pointerEvents: "none" }}>
+                <Icon d={I.lock} size={15} stroke={autoFilled ? "#0F6E56" : "currentColor"} />
               </span>
               <input
                 value={password}
@@ -157,16 +159,16 @@ export default function GuestJoin() {
                 type={showPw ? "text" : "password"}
                 placeholder="Password (if required)"
                 className="gi"
-                style={inputStyle(autoFilled ? "rgba(56,189,248,.35)" : "#1e293b")}
+                style={inputStyle(autoFilled ? "rgba(15,110,86,.45)" : "#d0e8d8")}
               />
               <button
                 type="button"
                 onClick={() => setShowPw(v => !v)}
-                style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", color: "#475569", background: "none", border: "none", cursor: "pointer", padding: 0 }}>
+                style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", color: "#4a6741", background: "none", border: "none", cursor: "pointer", padding: 0 }}>
                 <Icon d={I.eye} size={15} />
               </button>
               {autoFilled && (
-                <span style={{ position: "absolute", right: 36, top: "50%", transform: "translateY(-50%)", fontSize: 10, color: "#38bdf8", fontWeight: 600, letterSpacing: ".04em" }}>
+                <span style={{ position: "absolute", right: 36, top: "50%", transform: "translateY(-50%)", fontSize: 10, color: "#0F6E56", fontWeight: 600, letterSpacing: ".04em" }}>
                   AUTO-FILLED
                 </span>
               )}
@@ -174,33 +176,33 @@ export default function GuestJoin() {
 
             {error && (
               <div style={{
-                background: "rgba(239,68,68,.1)", border: "1px solid rgba(239,68,68,.25)",
-                borderRadius: 9, padding: "10px 14px", fontSize: 13, color: "#fca5a5", marginBottom: 16,
+                background: "rgba(239,68,68,.08)", border: "1px solid rgba(239,68,68,.2)",
+                borderRadius: 9, padding: "10px 14px", fontSize: 13, color: "#b91c1c", marginBottom: 16,
               }}>{error}</div>
             )}
 
             <button
               type="submit"
-              disabled={joining || !name.trim()}
+              disabled={!canSubmit}
               className="jbtn"
               style={{
                 width: "100%",
-                background: !name.trim() ? "#1e293b" : "linear-gradient(135deg,#0ea5e9,#6366f1)",
-                color: !name.trim() ? "#475569" : "#fff",
+                background: !name.trim() ? "#e4ede4" : "#0F6E56",
+                color: !name.trim() ? "#7a9e7a" : "#ffffff",
                 border: "none", borderRadius: 12, padding: "13px 0",
                 fontSize: 15, fontWeight: 600,
-                cursor: joining || !name.trim() ? "not-allowed" : "pointer",
+                cursor: canSubmit ? "pointer" : "not-allowed",
                 display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
               }}>
               {joining
                 ? <><span className="spin" style={{ fontSize: 16 }}>◌</span> Connecting…</>
-                : <><Icon d={I.video} size={17} stroke={!name.trim() ? "#475569" : "#fff"} /> Join Meeting</>
+                : <><Icon d={I.video} size={17} stroke={!name.trim() ? "#7a9e7a" : "#ffffff"} /> Join Meeting</>
               }
             </button>
           </form>
         </div>
 
-        <p style={{ textAlign: "center", fontSize: 11, color: "#1e293b", marginTop: 24 }}>
+        <p style={{ textAlign: "center", fontSize: 11, color: "#d0e8d8", marginTop: 24 }}>
           Powered by MeetHub · Jitsi as a Service
         </p>
       </div>
@@ -211,21 +213,21 @@ export default function GuestJoin() {
 function FieldLabel({ children, optional }) {
   return (
     <label style={{
-      fontSize: 11, fontWeight: 600, color: "#64748b",
+      fontSize: 11, fontWeight: 600, color: "#4a6741",
       textTransform: "uppercase", letterSpacing: ".07em",
       display: "block", marginBottom: 7,
     }}>
       {children}
-      {optional && <span style={{ fontWeight: 400, textTransform: "none", color: "#334155", marginLeft: 6 }}>— optional</span>}
+      {optional && <span style={{ fontWeight: 400, textTransform: "none", color: "#7a9e7a", marginLeft: 6 }}>— optional</span>}
     </label>
   );
 }
 
 const inputStyle = (borderColor) => ({
-  width: "100%", background: "#0b0f19",
+  width: "100%", background: "#ffffff",
   border: `1px solid ${borderColor}`,
   borderRadius: 10, padding: "10px 38px",
-  color: "#e2e8f0", fontSize: 14,
+  color: "#1a2e1a", fontSize: 14,
   transition: "border-color .15s, box-shadow .15s",
   display: "block",
 });

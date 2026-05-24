@@ -4,6 +4,24 @@ import { useState, useEffect, useCallback, useRef } from "react";
 const JAAS_APP_ID = import.meta.env.VITE_JAAS_APP_ID || "";
 const meetUrl = (room) => `https://8x8.vc/${JAAS_APP_ID}/${room}`;
 
+const THEME = {
+  bg:          "#ffffff",
+  bgSurface:   "#f8faf8",
+  bgInput:     "#f8faf8",
+  bgCard:      "#ffffff",
+  border:      "#d0e8d8",
+  borderCard:  "#e4ede4",
+  primary:     "#0F6E56",
+  primaryText: "#ffffff",
+  textMain:    "#1a2e1a",
+  textMuted:   "#4a6741",
+  textHint:    "#7a9e7a",
+  tabActive:   "rgba(15,110,86,.12)",
+  tabActiveText: "#0F6E56",
+  ghostBg:     "#f4faf7",
+  ghostBorder: "#c8e6d8",
+};
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 const CHARS = "abcdefghijklmnopqrstuvwxyz0123456789";
 const randomRoom = () => {
@@ -181,7 +199,7 @@ export default function App() {
   const past     = meetings.filter(m => new Date(m.time) <= Date.now() - 300000);
 
   return (
-    <div style={{ minHeight: "100vh", background: "#0b0f19", fontFamily: "'DM Sans','Segoe UI',sans-serif", color: "#e2e8f0", display: "flex", flexDirection: "column" }}>
+    <div style={{ minHeight: "100vh", background: THEME.bg, fontFamily: "'DM Sans','Segoe UI',sans-serif", color: THEME.textMain, display: "flex", flexDirection: "column" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Syne:wght@700;800&display=swap');
         *{box-sizing:border-box;margin:0;padding:0;}
@@ -193,8 +211,9 @@ export default function App() {
         .rec-card:hover{box-shadow:0 0 0 1px rgba(56,189,248,.3)!important;}
         .ico-btn:hover{background:rgba(255,255,255,.09)!important;}
         .cal-opt:hover{background:rgba(255,255,255,.06)!important;}
-        .freq-pill{padding:5px 12px;border-radius:6px;font-size:12px;border:1px solid #1e293b;color:#64748b;background:transparent;cursor:pointer;transition:all .15s;}
-        .freq-pill.active{background:rgba(56,189,248,.15);border-color:rgba(56,189,248,.4);color:#38bdf8;}
+        body{background:${THEME.bg};}
+        .freq-pill{padding:5px 12px;border-radius:6px;font-size:12px;border:1px solid ${THEME.borderCard};color:${THEME.textMuted};background:transparent;cursor:pointer;transition:all .15s;}
+        .freq-pill.active{background:${THEME.tabActive};border-color:rgba(56,189,248,.4);color:${THEME.tabActiveText};}
         @keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
         @keyframes toastIn{from{opacity:0;transform:translateX(24px)}to{opacity:1;transform:translateX(0)}}
         .fade-up{animation:fadeUp .32s ease forwards;}
@@ -218,7 +237,7 @@ export default function App() {
             <Icon d={ICONS.video} size={16} stroke="#fff" />
           </div>
           <span style={{ fontFamily: "Syne", fontWeight: 700, fontSize: 17 }}>MeetHub</span>
-          <span style={{ fontSize: 11, color: "#475569", marginLeft: 2 }}>· Jitsi</span>
+          <span style={{ fontSize: 11, color: THEME.textHint, marginLeft: 2 }}>· Jitsi</span>
         </div>
         {activeCall && (
           <div style={{ display: "flex", alignItems: "center", gap: 8, background: "rgba(239,68,68,.12)", border: "1px solid rgba(239,68,68,.25)", borderRadius: 8, padding: "5px 12px", fontSize: 12, color: "#fca5a5" }}>
@@ -232,7 +251,7 @@ export default function App() {
       </header>
 
       <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
-        <nav style={{ width: 56, flexShrink: 0, borderRight: "1px solid #1e293b", display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 16, gap: 4, background: "#090d16" }}>
+        <nav style={{ width: 56, flexShrink: 0, borderRight: `1px solid ${THEME.borderCard}`, display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 16, gap: 4, background: THEME.bgSurface }}>
           {[
             { id: "quick",     icon: ICONS.video,    label: "Quick Join" },
             { id: "recurring", icon: ICONS.repeat,   label: "Recurring" },
@@ -241,7 +260,7 @@ export default function App() {
             ...(activeCall ? [{ id: "call", icon: ICONS.link, label: "Active Call" }] : []),
           ].map(({ id, icon, label }) => (
             <button key={id} onClick={() => setTab(id)} title={label} className="tab-btn"
-              style={{ width: 40, height: 40, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", position: "relative", background: tab === id ? "rgba(56,189,248,.15)" : "transparent", color: tab === id ? "#38bdf8" : "#475569" }}>
+              style={{ width: 40, height: 40, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", position: "relative", background: tab === id ? THEME.tabActive : "transparent", color: tab === id ? THEME.tabActiveText : THEME.textHint }}>
               <Icon d={icon} size={18} />
               {id === "call" && <span style={{ position: "absolute", top: 5, right: 5, width: 7, height: 7, borderRadius: "50%", background: "#ef4444" }} className="pulse" />}
             </button>
@@ -292,11 +311,11 @@ function QuickJoin({ onJoin, onSave, onCopy, joining }) {
         <div style={{ display: "flex", gap: 8 }}>
           <input value={label} onChange={e => setLabel(e.target.value)} style={{ ...input, flex: 1 }} placeholder='Label e.g. "Team standup"' />
           <button onClick={() => { onSave(room, label || room); setLabel(""); }}
-            style={{ ...primaryBtn, background: "#1e293b", color: "#94a3b8" }} className="action-btn">
+            style={{ ...primaryBtn, background: THEME.borderCard, color: "#94a3b8" }} className="action-btn">
             <Icon d={ICONS.bookmark} size={15} /> Save
           </button>
         </div>
-        <p style={{ fontSize: 11, color: "#475569", marginTop: 10 }}>🔗 {window.location.origin}/join/{room}</p>
+        <p style={{ fontSize: 11, color: THEME.textHint, marginTop: 10 }}>🔗 {window.location.origin}/join/{room}</p>
       </div>
     </div>
   );
@@ -348,7 +367,7 @@ function RecurringTab({ recurring, onAdd, onDelete, onJoin, onCopy, onShare, sho
           <textarea value={form.notes} onChange={f("notes")} style={{ ...input, height: 60, resize: "none", marginBottom: 16 }} placeholder="Agenda, context…" />
           <Label>Password (optional)</Label>
           <div style={{ position: "relative", marginBottom: 0 }}>
-            <span style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", color: "#475569", pointerEvents: "none" }}>
+            <span style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", color: THEME.textHint, pointerEvents: "none" }}>
               <Icon d={ICONS.lock} size={14} />
             </span>
             <input value={form.password} onChange={f("password")} style={{ ...input, paddingLeft: 34 }} placeholder="Leave blank for no password" />
@@ -365,7 +384,7 @@ function RecurringTab({ recurring, onAdd, onDelete, onJoin, onCopy, onShare, sho
         : (
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {recurring.map((r, i) => (
-              <div key={r.id} className="card rec-card" style={{ background: "#111827", border: "1px solid #1e293b", borderRadius: 13, padding: "14px 18px", display: "flex", alignItems: "center", gap: 14 }}>
+              <div key={r.id} className="card rec-card" style={{ background: THEME.bgCard, border: "1px solid #1e293b", borderRadius: 13, padding: "14px 18px", display: "flex", alignItems: "center", gap: 14 }}>
                 <div style={{ width: 44, height: 44, borderRadius: "50%", flexShrink: 0, background: avatarColor(i), display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 15, color: "#fff" }}>
                   {initials(r.title)}
                 </div>
@@ -375,10 +394,10 @@ function RecurringTab({ recurring, onAdd, onDelete, onJoin, onCopy, onShare, sho
                     <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 8px", borderRadius: 20, background: FREQ_COLORS[r.freq] || FREQ_COLORS.custom, border: `1px solid ${FREQ_BORDERS[r.freq] || FREQ_BORDERS.custom}`, color: FREQ_TEXT[r.freq] || FREQ_TEXT.custom }}>
                       {FREQ_LABELS[r.freq] || r.freq}
                     </span>
-                    {r.password && <span style={{ fontSize: 10, color: "#64748b", display: "flex", alignItems: "center", gap: 3 }}><Icon d={ICONS.lock} size={11} stroke="#64748b" /> password</span>}
+                    {r.password && <span style={{ fontSize: 10, color: THEME.textMuted, display: "flex", alignItems: "center", gap: 3 }}><Icon d={ICONS.lock} size={11} stroke={THEME.textMuted} /> password</span>}
                   </div>
-                  <p style={{ fontSize: 11, color: "#475569" }}>8x8.vc/{JAAS_APP_ID}/{r.room}</p>
-                  {r.notes && <p style={{ fontSize: 11, color: "#64748b", marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.notes}</p>}
+                  <p style={{ fontSize: 11, color: THEME.textHint }}>8x8.vc/{JAAS_APP_ID}/{r.room}</p>
+                  {r.notes && <p style={{ fontSize: 11, color: THEME.textMuted, marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.notes}</p>}
                 </div>
                 <div style={{ display: "flex", gap: 6, flexShrink: 0, alignItems: "center" }}>
                   <button onClick={() => onCopy(r.room, r.password)} style={icoBtn} title="Copy invite link"><Icon d={ICONS.copy} size={14} /></button>
@@ -406,18 +425,18 @@ function CalendarMenu({ m, downloadIcs, googleCalUrl, outlookCalUrl }) {
         <Icon d={ICONS.calendar} size={14} />
       </button>
       {open && (
-        <div style={{ position: "absolute", right: 0, top: 36, zIndex: 200, background: "#1e293b", border: "1px solid #334155", borderRadius: 10, padding: "6px", minWidth: 220, boxShadow: "0 8px 32px rgba(0,0,0,.5)" }}>
-          <p style={{ fontSize: 10, fontWeight: 600, color: "#475569", textTransform: "uppercase", letterSpacing: ".07em", padding: "4px 10px 8px" }}>Add to calendar</p>
+        <div style={{ position: "absolute", right: 0, top: 36, zIndex: 200, background: THEME.borderCard, border: "1px solid #334155", borderRadius: 10, padding: "6px", minWidth: 220, boxShadow: "0 8px 32px rgba(0,0,0,.5)" }}>
+          <p style={{ fontSize: 10, fontWeight: 600, color: THEME.textHint, textTransform: "uppercase", letterSpacing: ".07em", padding: "4px 10px 8px" }}>Add to calendar</p>
           <a href={googleCalUrl(m)} target="_blank" rel="noreferrer" onClick={() => setOpen(false)} className="cal-opt"
-            style={{ display: "flex", alignItems: "center", gap: 9, padding: "8px 10px", borderRadius: 7, color: "#e2e8f0", textDecoration: "none", fontSize: 13 }}>
+            style={{ display: "flex", alignItems: "center", gap: 9, padding: "8px 10px", borderRadius: 7, color: THEME.textMain, textDecoration: "none", fontSize: 13 }}>
             <span style={{ fontSize: 15 }}>🗓️</span> Google Calendar
           </a>
           <a href={outlookCalUrl(m)} target="_blank" rel="noreferrer" onClick={() => setOpen(false)} className="cal-opt"
-            style={{ display: "flex", alignItems: "center", gap: 9, padding: "8px 10px", borderRadius: 7, color: "#e2e8f0", textDecoration: "none", fontSize: 13 }}>
+            style={{ display: "flex", alignItems: "center", gap: 9, padding: "8px 10px", borderRadius: 7, color: THEME.textMain, textDecoration: "none", fontSize: 13 }}>
             <span style={{ fontSize: 15 }}>📅</span> Outlook / Microsoft 365
           </a>
           <button onClick={() => { downloadIcs(m); setOpen(false); }} className="cal-opt"
-            style={{ display: "flex", alignItems: "center", gap: 9, padding: "8px 10px", borderRadius: 7, color: "#e2e8f0", fontSize: 13, width: "100%", background: "transparent" }}>
+            style={{ display: "flex", alignItems: "center", gap: 9, padding: "8px 10px", borderRadius: 7, color: THEME.textMain, fontSize: 13, width: "100%", background: "transparent" }}>
             <span style={{ fontSize: 15 }}>📥</span> Apple / Proton / Other (.ics)
           </button>
         </div>
@@ -463,7 +482,7 @@ function ScheduleTab({ upcoming, past, onAdd, onDelete, onJoin, onCopy, download
           <textarea value={form.notes} onChange={f("notes")} style={{ ...input, height: 70, resize: "none", marginBottom: 16 }} placeholder="Agenda, links…" />
           <Label>Password (optional)</Label>
           <div style={{ position: "relative" }}>
-            <span style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", color: "#475569", pointerEvents: "none" }}>
+            <span style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", color: THEME.textHint, pointerEvents: "none" }}>
               <Icon d={ICONS.lock} size={14} />
             </span>
             <input value={form.password} onChange={f("password")} style={{ ...input, paddingLeft: 34 }} placeholder="Leave blank for no password" />
@@ -479,17 +498,17 @@ function ScheduleTab({ upcoming, past, onAdd, onDelete, onJoin, onCopy, download
         <p style={sectionLabel}>Upcoming</p>
         <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 24 }}>
           {upcoming.map(m => (
-            <div key={m.id} style={{ background: "#111827", border: "1px solid #1e293b", borderRadius: 12, padding: "14px 18px", display: "flex", alignItems: "center", gap: 14 }} className="card">
+            <div key={m.id} style={{ background: THEME.bgCard, border: "1px solid #1e293b", borderRadius: 12, padding: "14px 18px", display: "flex", alignItems: "center", gap: 14 }} className="card">
               <div style={{ width: 42, height: 42, borderRadius: 10, flexShrink: 0, background: "rgba(56,189,248,.1)", border: "1px solid rgba(56,189,248,.2)", display: "flex", alignItems: "center", justifyContent: "center", color: "#38bdf8" }}>
                 <Icon d={ICONS.clock} size={18} />
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 2 }}>
                   <p style={{ fontWeight: 600, fontSize: 14 }}>{m.title}</p>
-                  {m.password && <span style={{ fontSize: 10, color: "#64748b", display: "flex", alignItems: "center", gap: 3 }}><Icon d={ICONS.lock} size={11} stroke="#64748b" /> password</span>}
+                  {m.password && <span style={{ fontSize: 10, color: THEME.textMuted, display: "flex", alignItems: "center", gap: 3 }}><Icon d={ICONS.lock} size={11} stroke={THEME.textMuted} /> password</span>}
                 </div>
-                <p style={{ fontSize: 12, color: "#64748b" }}>{fmt(m.time)}<span style={{ color: "#0ea5e9", marginLeft: 8 }}>{timeUntil(m.time)}</span></p>
-                {m.notes && <p style={{ fontSize: 11, color: "#475569", marginTop: 3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{m.notes}</p>}
+                <p style={{ fontSize: 12, color: THEME.textMuted }}>{fmt(m.time)}<span style={{ color: "#0ea5e9", marginLeft: 8 }}>{timeUntil(m.time)}</span></p>
+                {m.notes && <p style={{ fontSize: 11, color: THEME.textHint, marginTop: 3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{m.notes}</p>}
               </div>
               <div style={{ display: "flex", gap: 6, flexShrink: 0, alignItems: "center" }}>
                 <button onClick={() => onCopy(m.room, m.password)} style={icoBtn} title="Copy invite link"><Icon d={ICONS.copy} size={14} /></button>
@@ -506,13 +525,13 @@ function ScheduleTab({ upcoming, past, onAdd, onDelete, onJoin, onCopy, download
         <p style={sectionLabel}>Past</p>
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {past.map(m => (
-            <div key={m.id} style={{ background: "#111827", border: "1px solid #12161f", borderRadius: 12, padding: "14px 18px", display: "flex", alignItems: "center", gap: 14, opacity: .65 }} className="card">
-              <div style={{ width: 42, height: 42, borderRadius: 10, flexShrink: 0, background: "rgba(71,85,105,.15)", border: "1px solid #1e293b", display: "flex", alignItems: "center", justifyContent: "center", color: "#475569" }}>
+            <div key={m.id} style={{ background: THEME.bgCard, border: "1px solid #12161f", borderRadius: 12, padding: "14px 18px", display: "flex", alignItems: "center", gap: 14, opacity: .65 }} className="card">
+              <div style={{ width: 42, height: 42, borderRadius: 10, flexShrink: 0, background: "rgba(71,85,105,.15)", border: "1px solid #1e293b", display: "flex", alignItems: "center", justifyContent: "center", color: THEME.textHint }}>
                 <Icon d={ICONS.clock} size={18} />
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <p style={{ fontWeight: 600, fontSize: 14 }}>{m.title}</p>
-                <p style={{ fontSize: 12, color: "#64748b" }}>{fmt(m.time)}</p>
+                <p style={{ fontSize: 12, color: THEME.textMuted }}>{fmt(m.time)}</p>
               </div>
               <div style={{ display: "flex", gap: 6 }}>
                 <button onClick={() => onJoin(m.room, m.title)} style={{ ...icoBtn, color: "#38bdf8" }} title="Join again"><Icon d={ICONS.arrow} size={14} /></button>
@@ -538,13 +557,13 @@ function SavedTab({ rooms, onJoin, onDelete, onCopy }) {
         : (
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {rooms.map(r => (
-              <div key={r.id} style={{ background: "#111827", border: "1px solid #1e293b", borderRadius: 12, padding: "14px 18px", display: "flex", alignItems: "center", gap: 14 }} className="card">
+              <div key={r.id} style={{ background: THEME.bgCard, border: "1px solid #1e293b", borderRadius: 12, padding: "14px 18px", display: "flex", alignItems: "center", gap: 14 }} className="card">
                 <div style={{ width: 40, height: 40, borderRadius: 10, flexShrink: 0, background: "rgba(99,102,241,.1)", border: "1px solid rgba(99,102,241,.2)", display: "flex", alignItems: "center", justifyContent: "center", color: "#818cf8" }}>
                   <Icon d={ICONS.bookmark} size={17} />
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <p style={{ fontWeight: 600, fontSize: 14 }}>{r.label}</p>
-                  <p style={{ fontSize: 11, color: "#475569", marginTop: 1 }}>8x8.vc/{JAAS_APP_ID}/{r.room}</p>
+                  <p style={{ fontSize: 11, color: THEME.textHint, marginTop: 1 }}>8x8.vc/{JAAS_APP_ID}/{r.room}</p>
                 </div>
                 <div style={{ display: "flex", gap: 6 }}>
                   <button onClick={() => onCopy(r.room)} style={icoBtn} title="Copy invite link"><Icon d={ICONS.copy} size={14} /></button>
@@ -585,26 +604,26 @@ function SectionHeader({ title, sub, noMargin }) {
   return (
     <div style={{ marginBottom: noMargin ? 0 : 24 }}>
       <h1 style={{ fontFamily: "Syne", fontWeight: 700, fontSize: 22, marginBottom: 4 }}>{title}</h1>
-      {sub && <p style={{ color: "#64748b", fontSize: 13 }}>{sub}</p>}
+      {sub && <p style={{ color: THEME.textMuted, fontSize: 13 }}>{sub}</p>}
     </div>
   );
 }
 function Label({ children }) {
-  return <label style={{ fontSize: 11, fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: ".07em", display: "block", marginBottom: 7 }}>{children}</label>;
+  return <label style={{ fontSize: 11, fontWeight: 600, color: THEME.textMuted, textTransform: "uppercase", letterSpacing: ".07em", display: "block", marginBottom: 7 }}>{children}</label>;
 }
 function EmptyState({ icon, text }) {
   return (
     <div style={{ textAlign: "center", padding: "60px 0" }}>
-      <div style={{ marginBottom: 14, opacity: .4 }}><Icon d={icon} size={40} stroke="#64748b" /></div>
-      <p style={{ fontSize: 13, color: "#475569" }}>{text}</p>
+      <div style={{ marginBottom: 14, opacity: .4 }}><Icon d={icon} size={40} stroke={THEME.textMuted} /></div>
+      <p style={{ fontSize: 13, color: THEME.textHint }}>{text}</p>
     </div>
   );
 }
 
 // ─── Style tokens ─────────────────────────────────────────────────────────────
-const input      = { width: "100%", background: "#0b0f19", border: "1px solid #1e293b", borderRadius: 9, padding: "9px 13px", color: "#e2e8f0", fontSize: 13, display: "block" };
-const card       = { background: "#111827", border: "1px solid #1e293b", borderRadius: 16, padding: "24px 24px 20px", marginBottom: 16 };
-const primaryBtn = { background: "linear-gradient(135deg,#0ea5e9,#6366f1)", color: "#fff", borderRadius: 9, padding: "9px 18px", fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", gap: 7, cursor: "pointer", border: "none" };
-const ghostBtn   = { background: "rgba(255,255,255,.04)", border: "1px solid #1e293b", color: "#94a3b8", borderRadius: 9, padding: "9px 14px", fontSize: 13, fontWeight: 500, display: "flex", alignItems: "center", gap: 7, cursor: "pointer" };
-const icoBtn     = { width: 32, height: 32, borderRadius: 8, background: "rgba(255,255,255,.04)", border: "1px solid #1e293b", color: "#64748b", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "all .15s" };
-const sectionLabel = { fontSize: 11, fontWeight: 600, color: "#475569", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 12, display: "block" };
+const input      = { width: "100%", background: THEME.bgInput, border: "1px solid #1e293b", borderRadius: 9, padding: "9px 13px", color: THEME.textMain, fontSize: 13, display: "block" };
+const card       = { background: THEME.bgCard, border: "1px solid #1e293b", borderRadius: 16, padding: "24px 24px 20px", marginBottom: 16 };
+const primaryBtn = { background: THEME.primary, color: "#fff", borderRadius: 9, padding: "9px 18px", fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", gap: 7, cursor: "pointer", border: "none" };
+const ghostBtn   = { background: THEME.ghostBg, border: "1px solid #1e293b", color: "#94a3b8", borderRadius: 9, padding: "9px 14px", fontSize: 13, fontWeight: 500, display: "flex", alignItems: "center", gap: 7, cursor: "pointer" };
+const icoBtn     = { width: 32, height: 32, borderRadius: 8, background: THEME.ghostBg, border: "1px solid #1e293b", color: THEME.textMuted, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "all .15s" };
+const sectionLabel = { fontSize: 11, fontWeight: 600, color: THEME.textHint, textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 12, display: "block" };
