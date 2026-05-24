@@ -319,6 +319,7 @@ export default function App({ user }) {
       })
       .select('id, title, room_code, frequency, notes, room_password, created_at')
       .single();
+    console.log('addRecurring result:', { data, error });
     if (!error && data) {
       setRecurring(prev => [data, ...prev]);
       showToast("Recurring meeting created!");
