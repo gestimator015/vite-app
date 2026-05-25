@@ -54,10 +54,12 @@ const downloadIcs = (m) => {
 
 
 // ─── Recurring / frequency config ─────────────────────────────────────────────
+/*
 const FREQ_LABELS  = { daily: "Daily", weekly: "Weekly", biweekly: "Bi-weekly", monthly: "Monthly", custom: "Custom" };
 const FREQ_COLORS  = { daily: "rgba(16,185,129,.12)", weekly: "rgba(56,189,248,.12)", biweekly: "rgba(139,92,246,.12)", monthly: "rgba(245,158,11,.12)", custom: "rgba(236,72,153,.12)" };
 const FREQ_BORDERS = { daily: "rgba(16,185,129,.3)", weekly: "rgba(56,189,248,.3)", biweekly: "rgba(139,92,246,.3)", monthly: "rgba(245,158,11,.3)", custom: "rgba(236,72,153,.3)" };
 const FREQ_TEXT    = { daily: "#34d399", weekly: "#38bdf8", biweekly: "#a78bfa", monthly: "#fbbf24", custom: "#f472b6" };
+*/
 const AVATAR_COLORS = ["#0ea5e9", "#6366f1", "#10b981", "#f59e0b", "#ec4899", "#8b5cf6", "#ef4444", "#14b8a6"];
 const initials    = (name) => name.split(/\s+/).map(w => w[0]).join("").toUpperCase().slice(0, 2);
 const avatarColor = (i) => AVATAR_COLORS[i % AVATAR_COLORS.length];
@@ -313,11 +315,11 @@ export default function App({ user }) {
         user_id: user.id,
         title: r.title,
         room_code: r.room,
-        frequency: r.freq,
+        // frequency: r.freq,
         notes: r.notes,
         room_password: r.password
       })
-      .select('id, title, room_code, frequency, notes, room_password, created_at')
+      .select('id, title, room_code, notes, room_password, created_at')
       .single();
     console.log('addRecurring result:', { data, error });
     if (!error && data) {
@@ -493,8 +495,8 @@ function QuickJoin({ onJoin, onSave, onCopy, joining }) {
 
 // ─── Recurring Tab ────────────────────────────────────────────────────────────
 function RecurringTab({ recurring, onAdd, onDelete, onJoin, onCopy, onShare, showToast }) {
-  const FREQS = ["daily", "weekly", "biweekly", "monthly", "custom"];
-  const blank = { title: "", room: randomRoom(), freq: "weekly", notes: "", password: "" };
+  // const FREQS = ["daily", "weekly", "biweekly", "monthly", "custom"];
+  const blank = { title: "", room: randomRoom(), notes: "", password: "" };
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(blank);
   const f = k => e => setForm(p => ({ ...p, [k]: e.target.value }));
@@ -526,12 +528,12 @@ function RecurringTab({ recurring, onAdd, onDelete, onJoin, onCopy, onShare, sho
           </div>
           <Label>Frequency</Label>
           <div style={{ display: "flex", gap: 7, flexWrap: "wrap", marginBottom: 16 }}>
-            {FREQS.map(fq => (
+            {/* FREQS.map(fq => (
               <button key={fq} onClick={() => setForm(p => ({ ...p, freq: fq }))}
                 className={`freq-pill${form.freq === fq ? " active" : ""}`}>
                 {FREQ_LABELS[fq]}
               </button>
-            ))}
+            )) */}
           </div>
           <Label>Notes (optional)</Label>
           <textarea value={form.notes} onChange={f("notes")} style={{ ...input, height: 60, resize: "none", marginBottom: 16 }} placeholder="Agenda, context…" />
@@ -561,9 +563,9 @@ function RecurringTab({ recurring, onAdd, onDelete, onJoin, onCopy, onShare, sho
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 3, flexWrap: "wrap" }}>
                     <p style={{ fontWeight: 600, fontSize: 15 }}>{r.title}</p>
-                    <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 8px", borderRadius: 20, background: FREQ_COLORS[r.frequency] || FREQ_COLORS.custom, border: `1px solid ${FREQ_BORDERS[r.frequency] || FREQ_BORDERS.custom}`, color: FREQ_TEXT[r.frequency] || FREQ_TEXT.custom }}>
+                    {/* <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 8px", borderRadius: 20, background: FREQ_COLORS[r.frequency] || FREQ_COLORS.custom, border: `1px solid ${FREQ_BORDERS[r.frequency] || FREQ_BORDERS.custom}`, color: FREQ_TEXT[r.frequency] || FREQ_TEXT.custom }}>
                       {FREQ_LABELS[r.frequency] || r.frequency}
-                    </span>
+                    </span> */}
                     {r.room_password && <span style={{ fontSize: 10, color: THEME.textMuted, display: "flex", alignItems: "center", gap: 3 }}><Icon d={ICONS.lock} size={11} stroke={THEME.textMuted} /> password</span>}
                   </div>
                   <p style={{ fontSize: 11, color: THEME.textHint }}>8x8.vc/{JAAS_APP_ID}/{r.room_code}</p>
