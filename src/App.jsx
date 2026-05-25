@@ -222,7 +222,7 @@ export default function App({ user }) {
       setMeetings(meetData ?? []);
       const { data: recurData } = await supabase
         .from('recurring_meetings')
-        .select('id, title, room_code, frequency, notes, room_password, created_at')
+        .select('id, title, room_code, frequency, notes, room_password, guest_title, created_at')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
       setRecurring(recurData ?? []);
