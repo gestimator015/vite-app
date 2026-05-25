@@ -1,4 +1,5 @@
 import { SignJWT, importPKCS8 } from "jose";
+import { createClient } from "@supabase/supabase-js";
 
 export default async function handler(req, res) {
   const { room = "*", name = "Guest", email = "", password = "" } = req.query;
@@ -7,6 +8,9 @@ export default async function handler(req, res) {
   const keyId      = process.env.VITE_JAAS_KEY_ID;
   const rawKey     = process.env.JAAS_PRIVATE_KEY;
 
+  const supabaseUrl = process.env.VITE_SUPABASE_URL;
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
   const missing = [
     !appId  && "VITE_JAAS_APP_ID",
     !keyId  && "VITE_JAAS_KEY_ID",
@@ -14,6 +18,32 @@ export default async function handler(req, res) {
   ].filter(Boolean);
   if (missing.length) {
     return res.status(500).json({ error: "Missing environment variables", missing });
+  }
+
+  if (room && room !== "*") {
+    if (supabaseUrl && supabaseServiceKey) {
+      const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+      const { data: recurring } = await supabase
+        .from("recurring_meetings")
+        .select("room_password")
+        .eq("room_code", room)
+        .maybeSingle();
+
+      const { data: scheduled } = await supabase
+        .from("scheduled_meetings")
+        .select("room_password")
+        .eq("room_code", room)
+        .maybeSingle();
+
+      const record = recurring || scheduled;
+
+      if (record && record.room_password) {
+        if (!password || password !== record.room_password) {
+          return res.status(401).json({ error: "Invalid meeting password" });
+        }
+      }
+    }
   }
 
   // Vercel stores multi-line secrets with literal \n — restore real newlines
