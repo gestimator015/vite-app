@@ -23,6 +23,7 @@ export default async function handler(req, res) {
   if (room && room !== "*") {
     if (supabaseUrl && supabaseServiceKey) {
       const supabase = createClient(supabaseUrl, supabaseServiceKey);
+      console.log("DEBUG room:", room);
 
       const { data: recurring } = await supabase
         .from("recurring_meetings")
@@ -37,6 +38,11 @@ export default async function handler(req, res) {
         .maybeSingle();
 
       const record = recurring || scheduled;
+      console.log("DEBUG recurring:", JSON.stringify(recurring));
+      console.log("DEBUG scheduled:", JSON.stringify(scheduled));
+      console.log("DEBUG record:", JSON.stringify(record));
+      console.log("DEBUG supabaseUrl:", supabaseUrl ? "present" : "missing");
+      console.log("DEBUG supabaseServiceKey:", supabaseServiceKey ? "present" : "missing");
 
       if (record && record.room_password) {
         if (!password || password !== record.room_password) {
