@@ -67,6 +67,10 @@ function Root() {
 
   if (session === undefined) return null
 
+  if (window.location.pathname.startsWith('/join/')) {
+    return <BrowserRouter><Routes><Route path="/join/:roomId" element={<GuestJoin />} /></Routes></BrowserRouter>
+  }
+
   if (recovery) return <SetNewPassword onDone={() => setRecovery(false)} />
   if (!session) return <Auth />
 
