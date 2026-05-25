@@ -86,6 +86,7 @@ const ICONS = {
   lock:     "M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z",
   external: "M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3",
   settings: "M12 15a3 3 0 100-6 3 3 0 000 6zM19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z",
+  edit: "M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z",
 };
 
 // ─── SettingsTab ──────────────────────────────────────────────────────────────
@@ -317,13 +318,33 @@ export default function App({ user }) {
         room_code: r.room,
         // frequency: r.freq,
         notes: r.notes,
-        room_password: r.password
+        room_password: r.password,
+        guest_title: r.guest_title,
       })
-      .select('id, title, room_code, notes, room_password, created_at')
+      .select('id, title, room_code, notes, room_password, guest_title, created_at')
       .single();
     if (!error && data) {
       setRecurring(prev => [data, ...prev]);
       showToast("Recurring meeting created!");
+    }
+  }, [recurring]);
+
+  const updateRecurring = useCallback(async (id, updates) => {
+    const { data, error } = await supabase
+      .from('recurring_meetings')
+      .update({
+        title: updates.title,
+        notes: updates.notes,
+        room_password: updates.password,
+        guest_title: updates.guest_title,
+      })
+      .eq('id', id)
+      .eq('user_id', user.id)
+      .select('id, title, room_code, notes, room_password, guest_title, created_at')
+      .single();
+    if (!error && data) {
+      setRecurring(prev => prev.map(r => r.id === id ? data : r));
+      showToast('Meeting updated!');
     }
   }, [recurring]);
 
@@ -439,7 +460,7 @@ export default function App({ user }) {
 
         <main style={{ flex: 1, overflowY: "auto", padding: "28px 32px" }}>
           {tab === "quick"     && <QuickJoin     onJoin={joinMeeting} onSave={saveRoom} onCopy={copyLink} joining={joining} />}
-          {tab === "recurring" && <RecurringTab  recurring={recurring} onAdd={addRecurring} onDelete={deleteRecurring} onJoin={joinMeeting} onCopy={copyLink} onShare={shareRecurring} showToast={showToast} />}
+          {tab === "recurring" && <RecurringTab  recurring={recurring} onAdd={addRecurring} onEdit={updateRecurring} onDelete={deleteRecurring} onJoin={joinMeeting} onCopy={copyLink} onShare={shareRecurring} showToast={showToast} />}
           {tab === "schedule"  && <ScheduleTab   upcoming={upcoming} past={past} onAdd={addMeeting} onDelete={deleteMeeting} onJoin={joinMeeting} onCopy={copyLink} downloadIcs={downloadIcs} googleCalUrl={googleCalUrl} outlookCalUrl={outlookCalUrl} />}
           {tab === "saved"     && <SavedTab      rooms={savedRooms} onJoin={joinMeeting} onDelete={deleteRoom} onCopy={copyLink} />}
           {tab === "settings" && <SettingsTab user={user} showToast={showToast} />}
@@ -493,12 +514,21 @@ function QuickJoin({ onJoin, onSave, onCopy, joining }) {
 }
 
 // ─── Recurring Tab ────────────────────────────────────────────────────────────
-function RecurringTab({ recurring, onAdd, onDelete, onJoin, onCopy, onShare, showToast }) {
+function RecurringTab({ recurring, onAdd, onEdit, onDelete, onJoin, onCopy, onShare, showToast }) {
   // const FREQS = ["daily", "weekly", "biweekly", "monthly", "custom"];
-  const blank = { title: "", room: randomRoom(), notes: "", password: "" };
+  const blank = { title: "", room: randomRoom(), notes: "", password: "", guest_title: "" };
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(blank);
   const f = k => e => setForm(p => ({ ...p, [k]: e.target.value }));
+  const [editingId, setEditingId] = useState(null);
+  const [editForm, setEditForm] = useState({});
+  const ef = k => e => setEditForm(p => ({ ...p, [k]: e.target.value }));
+  async function editSubmit() {
+    if (!editForm.title?.trim()) return;
+    await onEdit(editingId, editForm);
+    setEditingId(null);
+    setEditForm({});
+  }
 
   const submit = () => {
     if (!form.title.trim()) { showToast("Please add a name", "error"); return; }
@@ -525,15 +555,6 @@ function RecurringTab({ recurring, onAdd, onDelete, onJoin, onCopy, onShare, sho
             <input value={form.room} onChange={f("room")} style={{ ...input, flex: 1 }} />
             <button onClick={() => setForm(p => ({ ...p, room: randomRoom() }))} style={ghostBtn}>Random</button>
           </div>
-          <Label>Frequency</Label>
-          <div style={{ display: "flex", gap: 7, flexWrap: "wrap", marginBottom: 16 }}>
-            {/* FREQS.map(fq => (
-              <button key={fq} onClick={() => setForm(p => ({ ...p, freq: fq }))}
-                className={`freq-pill${form.freq === fq ? " active" : ""}`}>
-                {FREQ_LABELS[fq]}
-              </button>
-            )) */}
-          </div>
           <Label>Notes (optional)</Label>
           <textarea value={form.notes} onChange={f("notes")} style={{ ...input, height: 60, resize: "none", marginBottom: 16 }} placeholder="Agenda, context…" />
           <Label>Password (optional)</Label>
@@ -543,6 +564,8 @@ function RecurringTab({ recurring, onAdd, onDelete, onJoin, onCopy, onShare, sho
             </span>
             <input value={form.password} onChange={f("password")} style={{ ...input, paddingLeft: 34 }} placeholder="Leave blank for no password" />
           </div>
+          <Label>Guest title (optional)</Label>
+          <input value={form.guest_title || ''} onChange={f("guest_title")} style={{ ...input, marginBottom: 16 }} placeholder="Title shown to guests" />
           <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
             <button onClick={submit} style={primaryBtn} className="action-btn">Create Meeting</button>
             <button onClick={() => { setShowForm(false); setForm(blank); }} style={ghostBtn}>Cancel</button>
@@ -554,6 +577,27 @@ function RecurringTab({ recurring, onAdd, onDelete, onJoin, onCopy, onShare, sho
         ? <EmptyState icon={ICONS.repeat} text="No recurring meetings yet. Create one for anyone you meet regularly." />
         : (
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {editingId && (
+            <div style={{ background: THEME.bgCard, border: "1px solid #f59e0b", borderRadius: 13, padding: "20px 22px", marginBottom: 20 }}>
+              <Label>Name / Title *</Label>
+              <input value={editForm.title || ''} onChange={ef("title")} style={{ ...input, marginBottom: 16 }} />
+              <Label>Guest title (optional)</Label>
+              <input value={editForm.guest_title || ''} onChange={ef("guest_title")} style={{ ...input, marginBottom: 16 }} placeholder="Title shown to guests" />
+              <Label>Notes (optional)</Label>
+              <textarea value={editForm.notes || ''} onChange={ef("notes")} style={{ ...input, height: 60, resize: "none", marginBottom: 16 }} placeholder="Agenda, context…" />
+              <Label>Password (optional)</Label>
+              <div style={{ position: "relative", marginBottom: 16 }}>
+                <span style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", color: THEME.textHint, pointerEvents: "none" }}>
+                  <Icon d={ICONS.lock} size={14} />
+                </span>
+                <input value={editForm.password || ''} onChange={ef("password")} style={{ ...input, paddingLeft: 34 }} placeholder="Leave blank for no password" />
+              </div>
+              <div style={{ display: "flex", gap: 10 }}>
+                <button onClick={editSubmit} style={primaryBtn} className="action-btn">Save Changes</button>
+                <button onClick={() => { setEditingId(null); setEditForm({}); }} style={ghostBtn}>Cancel</button>
+              </div>
+            </div>
+          )}
             {recurring.map((r, i) => (
               <div key={r.id} className="card rec-card" style={{ background: THEME.bgCard, border: "1px solid #1e293b", borderRadius: 13, padding: "14px 18px", display: "flex", alignItems: "center", gap: 14 }}>
                 <div style={{ width: 44, height: 44, borderRadius: "50%", flexShrink: 0, background: avatarColor(i), display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 15, color: "#fff" }}>
@@ -576,6 +620,7 @@ function RecurringTab({ recurring, onAdd, onDelete, onJoin, onCopy, onShare, sho
                     <Icon d={ICONS.share} size={14} />
                   </button>
                   <button onClick={() => onJoin(r.room_code, r.title)} style={{ ...icoBtn, color: "#38bdf8" }} title="Join now"><Icon d={ICONS.arrow} size={14} /></button>
+                  <button onClick={() => { setEditingId(r.id); setEditForm({ title: r.title, notes: r.notes || '', password: r.room_password || '', guest_title: r.guest_title || '' }); }} style={icoBtn} title="Edit"><Icon d={ICONS.edit} size={14} /></button>
                   <button onClick={() => onDelete(r.id)} style={{ ...icoBtn, color: "#ef4444" }} title="Delete"><Icon d={ICONS.trash} size={14} /></button>
                 </div>
               </div>
