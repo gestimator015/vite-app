@@ -326,6 +326,9 @@ export default function App({ user }) {
     if (!error && data) {
       setRecurring(prev => [data, ...prev]);
       showToast("Recurring meeting created!");
+    } else {
+      console.error("addRecurring error:", JSON.stringify(error));
+      showToast("Failed to create meeting: " + (error?.message || "unknown error"), "error");
     }
   }, [recurring]);
 
