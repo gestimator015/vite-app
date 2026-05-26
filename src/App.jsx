@@ -31,16 +31,17 @@ const timeUntil = (iso) => {
 
 // ─── Calendar Helpers ─────────────────────────────────────────────────────────
 const toCalDate = (iso) => new Date(iso).toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
+const calEnd = (m) => m.end_time || new Date(new Date(m.scheduled_at).getTime() + 3600000).toISOString();
 const googleCalUrl = (m) => {
-  const s = toCalDate(m.scheduled_at), e = toCalDate(new Date(new Date(m.scheduled_at).getTime() + 3600000).toISOString());
+  const s = toCalDate(m.scheduled_at), e = toCalDate(calEnd(m));
   return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(m.title)}&dates=${s}/${e}&details=${encodeURIComponent(`Join at ${meetUrl(m.room_code)}\n\n${m.notes || ""}`)}&location=${encodeURIComponent(meetUrl(m.room_code))}`;
 };
 const outlookCalUrl = (m) => {
-  const s = new Date(m.scheduled_at).toISOString(), e = new Date(new Date(m.scheduled_at).getTime() + 3600000).toISOString();
+  const s = new Date(m.scheduled_at).toISOString(), e = calEnd(m);
   return `https://outlook.live.com/calendar/0/deeplink/compose?subject=${encodeURIComponent(m.title)}&startdt=${s}&enddt=${e}&body=${encodeURIComponent(`Join at ${meetUrl(m.room_code)}\n\n${m.notes || ""}`)}&location=${encodeURIComponent(meetUrl(m.room_code))}`;
 };
 const downloadIcs = (m) => {
-  const s = toCalDate(m.scheduled_at), e = toCalDate(new Date(new Date(m.scheduled_at).getTime() + 3600000).toISOString());
+  const s = toCalDate(m.scheduled_at), e = toCalDate(calEnd(m));
   const content = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//MeetHub//EN", "BEGIN:VEVENT",
     `DTSTART:${s}`, `DTEND:${e}`, `SUMMARY:${m.title}`,
     `DESCRIPTION:Join at ${meetUrl(m.room_code)}\\n\\n${m.notes || ""}`,
@@ -255,7 +256,7 @@ export default function App({ user }) {
       setSavedRooms(savedData ?? []);
       const { data: meetData } = await supabase
         .from('scheduled_meetings')
-        .select('id, title, room_code, scheduled_at, notes, room_password')
+        .select('id, title, room_code, scheduled_at, end_time, notes, room_password')
         .eq('user_id', user.id)
         .order('scheduled_at', { ascending: true });
       setMeetings(meetData ?? []);
@@ -321,11 +322,12 @@ export default function App({ user }) {
         user_id: user.id,
         title: m.title,
         room_code: m.room,
-        scheduled_at: m.time,
+        scheduled_at: m.scheduledAt,
+        end_time: m.endTime,
         notes: m.notes,
         room_password: m.password
       })
-      .select('id, title, room_code, scheduled_at, notes, room_password')
+      .select('id, title, room_code, scheduled_at, end_time, notes, room_password')
       .single();
     if (!error && data) {
       setMeetings(prev =>
@@ -702,12 +704,27 @@ function CalendarMenu({ m, downloadIcs, googleCalUrl, outlookCalUrl }) {
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+const TIME_SLOTS = (() => {
+  const slots = [];
+  for (let h = 0; h < 24; h++) {
+    for (const m of [0, 30]) {
+      const value = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+      const period = h < 12 ? "AM" : "PM";
+      const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+      const label = `${h12}:${String(m).padStart(2, "0")} ${period}`;
+      slots.push({ value, label });
+    }
+  }
+  return slots;
+})();
+
 function parseGuestEmails(raw) {
   return raw.split(',').map(e => e.trim()).filter(Boolean);
 }
 
 function ScheduleTab({ upcoming, past, onAdd, onDelete, onJoin, onCopy, downloadIcs, googleCalUrl, outlookCalUrl, user }) {
-  const blank = { title: "", room: randomRoom(), time: "", notes: "", password: "" };
+  const blank = { title: "", room: randomRoom(), date: "", startTime: "", endTime: "", notes: "", password: "" };
+  const [timeError, setTimeError] = useState("");
   const [showForm, setShowForm]         = useState(false);
   const [form, setForm]                 = useState(blank);
   const [guestEmailsRaw, setGuestEmailsRaw] = useState("");
@@ -737,12 +754,20 @@ function ScheduleTab({ upcoming, past, onAdd, onDelete, onJoin, onCopy, download
   }
 
   const submit = async () => {
-    if (!form.title || !form.time) return;
+    if (!form.title || !form.date || !form.startTime || !form.endTime) return;
+    if (form.endTime <= form.startTime) {
+      setTimeError("End time must be after start time. / O horário de término deve ser após o início.");
+      return;
+    }
+    setTimeError("");
     const emails = validateAndParseEmails(guestEmailsRaw);
     if (guestEmailError) return;
+    const scheduledAt = new Date(`${form.date}T${form.startTime}`).toISOString();
+    const endTime     = new Date(`${form.date}T${form.endTime}`).toISOString();
     const roomCode = form.room.trim().replace(/\s+/g, "-").toLowerCase();
-    onAdd({ id: Date.now(), ...form, room: roomCode });
+    onAdd({ id: Date.now(), ...form, room: roomCode, scheduledAt, endTime });
     setForm(blank);
+    setTimeError("");
     setGuestEmailsRaw("");
     setGuestEmails([]);
     setGuestEmailError("");
@@ -758,7 +783,7 @@ function ScheduleTab({ upcoming, past, onAdd, onDelete, onJoin, onCopy, download
             hostEmail,
             hostName: user?.user_metadata?.full_name || user?.email || '',
             meetingTitle: form.title,
-            meetingDate: form.time,
+            meetingDate: scheduledAt,
             roomCode,
             password: form.password || null,
           }),
@@ -790,7 +815,24 @@ function ScheduleTab({ upcoming, past, onAdd, onDelete, onJoin, onCopy, download
         <div style={{ ...card, border: "1px solid #38bdf8", marginBottom: 20 }}>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
             <div><Label>Title *</Label><input value={form.title} onChange={f("title")} style={input} placeholder="Weekly standup" /></div>
-            <div><Label>Date & time *</Label><input type="datetime-local" value={form.time} onChange={f("time")} style={input} /></div>
+            <div>
+              <Label>Date & Time *</Label>
+              <div style={{ display: "flex", gap: 6 }}>
+                <input type="date" value={form.date} onChange={f("date")} style={{ ...input, flex: "1 1 auto", marginBottom: 0 }} />
+                <select value={form.startTime} onChange={f("startTime")} style={{ ...input, flex: "0 0 auto", width: 110, marginBottom: 0 }}>
+                  <option value="">Start</option>
+                  {TIME_SLOTS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                </select>
+              </div>
+            </div>
+          </div>
+          <div style={{ marginBottom: 16 }}>
+            <Label>End Time *</Label>
+            <select value={form.endTime} onChange={f("endTime")} style={{ ...input, width: 160 }}>
+              <option value="">End time</option>
+              {TIME_SLOTS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+            </select>
+            {timeError && <p style={{ fontSize: 12, color: "#b91c1c", marginTop: 6 }}>{timeError}</p>}
           </div>
           <Label>Room name</Label>
           <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
@@ -826,7 +868,7 @@ function ScheduleTab({ upcoming, past, onAdd, onDelete, onJoin, onCopy, download
           />
           <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
             <button onClick={submit} style={primaryBtn} className="action-btn">Schedule Meeting</button>
-            <button onClick={() => { setShowForm(false); setForm(blank); setGuestEmailsRaw(""); setGuestEmails([]); setGuestEmailError(""); }} style={ghostBtn}>Cancel</button>
+            <button onClick={() => { setShowForm(false); setForm(blank); setTimeError(""); setGuestEmailsRaw(""); setGuestEmails([]); setGuestEmailError(""); }} style={ghostBtn}>Cancel</button>
           </div>
         </div>
       )}
