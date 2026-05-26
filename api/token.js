@@ -37,15 +37,6 @@ export default async function handler(req, res) {
         .maybeSingle();
 
       const record = recurring || scheduled;
-      console.log("DIAG supabaseUrl:", supabaseUrl ? "present" : "MISSING");
-      console.log("DIAG supabaseServiceKey:", supabaseServiceKey ? "present" : "MISSING");
-      console.log("DIAG room:", room);
-      console.log("DIAG recurring:", JSON.stringify(recurring));
-      console.log("DIAG scheduled:", JSON.stringify(scheduled));
-      console.log("DIAG record:", JSON.stringify(record));
-      console.log("DIAG password submitted:", password ? "present" : "MISSING");
-      console.log("DIAG record.room_password:", record?.room_password ? "present" : "MISSING or NULL");
-      console.log("DIAG match:", password === record?.room_password);
 
       if (record && record.room_password) {
         if (!password || password !== record.room_password) {
