@@ -283,7 +283,7 @@ export default function App({ user }) {
       setSavedRooms(savedData ?? []);
       const { data: meetData } = await supabase
         .from('scheduled_meetings')
-        .select('id, title, room_code, scheduled_at, end_time, notes, room_password')
+        .select('id, title, room_code, scheduled_at, end_time, notes, room_password, guest_title')
         .eq('user_id', user.id)
         .order('scheduled_at', { ascending: true });
       setMeetings(meetData ?? []);
@@ -352,9 +352,10 @@ export default function App({ user }) {
         scheduled_at: m.scheduledAt,
         end_time: m.endTime,
         notes: m.notes,
-        room_password: m.password
+        room_password: m.password,
+        guest_title: m.guestTitle || null
       })
-      .select('id, title, room_code, scheduled_at, end_time, notes, room_password')
+      .select('id, title, room_code, scheduled_at, end_time, notes, room_password, guest_title')
       .single();
     if (!error && data) {
       setMeetings(prev =>
@@ -749,7 +750,7 @@ function parseGuestEmails(raw) {
 }
 
 function ScheduleTab({ upcoming, past, onAdd, onDelete, onJoin, onCopy, downloadIcs, googleCalUrl, outlookCalUrl, user, timeFmt }) {
-  const blank = { title: "", room: randomRoom(), date: "", startHour: "", startMinute: "", endHour: "", endMinute: "", notes: "", password: "" };
+  const blank = { title: "", room: randomRoom(), date: "", startHour: "", startMinute: "", endHour: "", endMinute: "", guestTitle: "", notes: "", password: "" };
   const [timeError, setTimeError] = useState("");
   const [showForm, setShowForm]         = useState(false);
   const [form, setForm]                 = useState(blank);
@@ -842,7 +843,11 @@ function ScheduleTab({ upcoming, past, onAdd, onDelete, onJoin, onCopy, download
       {showForm && (
         <div style={{ ...card, border: "1px solid #38bdf8", marginBottom: 20 }}>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
-            <div><Label>Title *</Label><input value={form.title} onChange={f("title")} style={input} placeholder="Weekly standup" /></div>
+            <div>
+              <Label>Title *</Label><input value={form.title} onChange={f("title")} style={input} placeholder="Weekly standup" />
+              <Label>Guest Title (optional) / Título para Convidados (opcional)</Label>
+              <input value={form.guestTitle} onChange={f("guestTitle")} style={input} placeholder="e.g. Team Standup, Client Call…" />
+            </div>
             <div>
               <Label>Date & Time *</Label>
               <div style={{ display: "flex", gap: 6 }}>
@@ -873,10 +878,13 @@ function ScheduleTab({ upcoming, past, onAdd, onDelete, onJoin, onCopy, download
             {timeError && <p style={{ fontSize: 12, color: "#b91c1c", marginTop: 6 }}>{timeError}</p>}
           </div>
           <Label>Room name</Label>
-          <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+          <div style={{ display: "flex", gap: 8 }}>
             <input value={form.room} onChange={f("room")} style={{ ...input, flex: 1 }} />
             <button onClick={() => setForm(p => ({ ...p, room: randomRoom() }))} style={ghostBtn}>Random</button>
           </div>
+          <p style={{ fontSize: 11, color: THEME.textHint, marginTop: 4, marginBottom: 16, wordBreak: "break-all" }}>
+            Join link: {window.location.origin}/join/{form.room.trim().replace(/\s+/g, "-").toLowerCase()}
+          </p>
           <Label>Notes (optional)</Label>
           <textarea value={form.notes} onChange={f("notes")} style={{ ...input, height: 70, resize: "none", marginBottom: 16 }} placeholder="Agenda, links…" />
           <Label>Password (optional)</Label>
