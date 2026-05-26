@@ -464,7 +464,7 @@ export default function App({ user }) {
         <main style={{ flex: 1, overflowY: "auto", padding: "28px 32px" }}>
           {tab === "quick"     && <QuickJoin     onJoin={joinMeeting} onSave={saveRoom} onCopy={copyLink} joining={joining} />}
           {tab === "recurring" && <RecurringTab  recurring={recurring} onAdd={addRecurring} onEdit={updateRecurring} onDelete={deleteRecurring} onJoin={joinMeeting} onCopy={copyLink} onShare={shareRecurring} showToast={showToast} />}
-          {tab === "schedule"  && <ScheduleTab   upcoming={upcoming} past={past} onAdd={addMeeting} onDelete={deleteMeeting} onJoin={joinMeeting} onCopy={copyLink} downloadIcs={downloadIcs} googleCalUrl={googleCalUrl} outlookCalUrl={outlookCalUrl} />}
+          {tab === "schedule"  && <ScheduleTab   upcoming={upcoming} past={past} onAdd={addMeeting} onDelete={deleteMeeting} onJoin={joinMeeting} onCopy={copyLink} downloadIcs={downloadIcs} googleCalUrl={googleCalUrl} outlookCalUrl={outlookCalUrl} user={user} />}
           {tab === "saved"     && <SavedTab      rooms={savedRooms} onJoin={joinMeeting} onDelete={deleteRoom} onCopy={copyLink} />}
           {tab === "settings" && <SettingsTab user={user} showToast={showToast} />}
           {tab === "call" && activeCall && <CallTab call={activeCall} onEnd={endCall} iframeRef={iframeRef} />}
@@ -664,27 +664,90 @@ function CalendarMenu({ m, downloadIcs, googleCalUrl, outlookCalUrl }) {
   );
 }
 
-function ScheduleTab({ upcoming, past, onAdd, onDelete, onJoin, onCopy, downloadIcs, googleCalUrl, outlookCalUrl }) {
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function parseGuestEmails(raw) {
+  return raw.split(',').map(e => e.trim()).filter(Boolean);
+}
+
+function ScheduleTab({ upcoming, past, onAdd, onDelete, onJoin, onCopy, downloadIcs, googleCalUrl, outlookCalUrl, user }) {
   const blank = { title: "", room: randomRoom(), time: "", notes: "", password: "" };
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState(blank);
+  const [showForm, setShowForm]         = useState(false);
+  const [form, setForm]                 = useState(blank);
+  const [guestEmailsRaw, setGuestEmailsRaw] = useState("");
+  const [guestEmails, setGuestEmails]   = useState([]);
+  const [hostEmail, setHostEmail]       = useState(user?.email || "");
+  const [guestEmailError, setGuestEmailError] = useState("");
+  const [inviteWarning, setInviteWarning] = useState(false);
   const f = k => e => setForm(p => ({ ...p, [k]: e.target.value }));
 
-  const submit = () => {
+  function validateAndParseEmails(raw) {
+    const parsed = parseGuestEmails(raw);
+    if (parsed.length === 0) { setGuestEmails([]); setGuestEmailError(""); return []; }
+    const invalid = parsed.filter(e => !EMAIL_RE.test(e));
+    if (invalid.length > 0) {
+      setGuestEmailError("Invalid email address(es). / Endereço(s) de e-mail inválido(s).");
+      setGuestEmails([]);
+      return [];
+    }
+    if (parsed.length > 20) {
+      setGuestEmailError("Too many guests (max 20). / Muitos convidados (máx 20).");
+      setGuestEmails([]);
+      return [];
+    }
+    setGuestEmailError("");
+    setGuestEmails(parsed);
+    return parsed;
+  }
+
+  const submit = async () => {
     if (!form.title || !form.time) return;
-    onAdd({ id: Date.now(), ...form, room: form.room.trim().replace(/\s+/g, "-").toLowerCase() });
+    const emails = validateAndParseEmails(guestEmailsRaw);
+    if (guestEmailError) return;
+    const roomCode = form.room.trim().replace(/\s+/g, "-").toLowerCase();
+    onAdd({ id: Date.now(), ...form, room: roomCode });
     setForm(blank);
+    setGuestEmailsRaw("");
+    setGuestEmails([]);
+    setGuestEmailError("");
+    setInviteWarning(false);
     setShowForm(false);
+    if (emails.length > 0) {
+      try {
+        const res = await fetch('/api/send-invite', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            guestEmails: emails,
+            hostEmail,
+            meetingTitle: form.title,
+            meetingDate: form.time,
+            roomCode,
+            password: form.password || null,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) setInviteWarning(true);
+      } catch {
+        setInviteWarning(true);
+      }
+    }
   };
 
   return (
     <div className="fade-up">
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
         <SectionHeader title="Meetings" sub="Schedule one-off calls" noMargin />
-        <button onClick={() => setShowForm(v => !v)} style={primaryBtn} className="action-btn">
+        <button onClick={() => { setShowForm(v => !v); setInviteWarning(false); }} style={primaryBtn} className="action-btn">
           <Icon d={ICONS.plus} size={15} stroke="#fff" /> New Meeting
         </button>
       </div>
+
+      {inviteWarning && (
+        <div style={{ background: "rgba(245,158,11,.08)", border: "1px solid rgba(245,158,11,.25)", borderRadius: 9, padding: "10px 14px", fontSize: 13, color: "#b45309", marginBottom: 16 }}>
+          Invites could not be sent. / Convites não puderam ser enviados.
+        </div>
+      )}
 
       {showForm && (
         <div style={{ ...card, border: "1px solid #38bdf8", marginBottom: 20 }}>
@@ -700,15 +763,33 @@ function ScheduleTab({ upcoming, past, onAdd, onDelete, onJoin, onCopy, download
           <Label>Notes (optional)</Label>
           <textarea value={form.notes} onChange={f("notes")} style={{ ...input, height: 70, resize: "none", marginBottom: 16 }} placeholder="Agenda, links…" />
           <Label>Password (optional)</Label>
-          <div style={{ position: "relative" }}>
+          <div style={{ position: "relative", marginBottom: 16 }}>
             <span style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", color: THEME.textHint, pointerEvents: "none" }}>
               <Icon d={ICONS.lock} size={14} />
             </span>
             <input value={form.password} onChange={f("password")} style={{ ...input, paddingLeft: 34 }} placeholder="Leave blank for no password" />
           </div>
-          <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
+          <Label>Guest Emails / E-mails dos Convidados (optional)</Label>
+          <input
+            value={guestEmailsRaw}
+            onChange={e => setGuestEmailsRaw(e.target.value)}
+            onBlur={() => validateAndParseEmails(guestEmailsRaw)}
+            style={{ ...input, marginBottom: guestEmailError ? 6 : 16 }}
+            placeholder="guest1@email.com, guest2@email.com"
+          />
+          {guestEmailError && (
+            <p style={{ fontSize: 12, color: "#b91c1c", marginBottom: 16 }}>{guestEmailError}</p>
+          )}
+          <Label>Your Email (Reply-To) / Seu E-mail (optional)</Label>
+          <input
+            value={hostEmail}
+            onChange={e => setHostEmail(e.target.value)}
+            style={{ ...input, marginBottom: 16 }}
+            placeholder="your@email.com"
+          />
+          <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
             <button onClick={submit} style={primaryBtn} className="action-btn">Schedule Meeting</button>
-            <button onClick={() => { setShowForm(false); setForm(blank); }} style={ghostBtn}>Cancel</button>
+            <button onClick={() => { setShowForm(false); setForm(blank); setGuestEmailsRaw(""); setGuestEmails([]); setGuestEmailError(""); }} style={ghostBtn}>Cancel</button>
           </div>
         </div>
       )}
