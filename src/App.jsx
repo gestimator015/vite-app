@@ -731,26 +731,25 @@ function CalendarMenu({ m, downloadIcs, googleCalUrl, outlookCalUrl }) {
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-const TIME_SLOTS = (() => {
-  const slots = [];
-  for (let h = 0; h < 24; h++) {
-    for (const m of [0, 30]) {
-      const value = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
-      const period = h < 12 ? "AM" : "PM";
-      const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
-      const label = `${h12}:${String(m).padStart(2, "0")} ${period}`;
-      slots.push({ value, label });
-    }
-  }
-  return slots;
-})();
+const HOUR_SLOTS_12 = Array.from({ length: 24 }, (_, h) => ({
+  value: String(h).padStart(2, "0"),
+  label: `${h === 0 ? 12 : h > 12 ? h - 12 : h} ${h < 12 ? "AM" : "PM"}`,
+}));
+const HOUR_SLOTS_24 = Array.from({ length: 24 }, (_, h) => ({
+  value: String(h).padStart(2, "0"),
+  label: String(h).padStart(2, "0"),
+}));
+const MINUTE_SLOTS = Array.from({ length: 12 }, (_, i) => ({
+  value: String(i * 5).padStart(2, "0"),
+  label: String(i * 5).padStart(2, "0"),
+}));
 
 function parseGuestEmails(raw) {
   return raw.split(',').map(e => e.trim()).filter(Boolean);
 }
 
 function ScheduleTab({ upcoming, past, onAdd, onDelete, onJoin, onCopy, downloadIcs, googleCalUrl, outlookCalUrl, user, timeFmt }) {
-  const blank = { title: "", room: randomRoom(), date: "", startTime: "", endTime: "", notes: "", password: "" };
+  const blank = { title: "", room: randomRoom(), date: "", startHour: "", startMinute: "", endHour: "", endMinute: "", notes: "", password: "" };
   const [timeError, setTimeError] = useState("");
   const [showForm, setShowForm]         = useState(false);
   const [form, setForm]                 = useState(blank);
@@ -781,16 +780,18 @@ function ScheduleTab({ upcoming, past, onAdd, onDelete, onJoin, onCopy, download
   }
 
   const submit = async () => {
-    if (!form.title || !form.date || !form.startTime || !form.endTime) return;
-    if (form.endTime <= form.startTime) {
+    if (!form.title || !form.date || !form.startHour || !form.startMinute || !form.endHour || !form.endMinute) return;
+    const startTotal = parseInt(form.startHour) * 60 + parseInt(form.startMinute);
+    const endTotal   = parseInt(form.endHour)   * 60 + parseInt(form.endMinute);
+    if (endTotal <= startTotal) {
       setTimeError("End time must be after start time. / O horário de término deve ser após o início.");
       return;
     }
     setTimeError("");
     const emails = validateAndParseEmails(guestEmailsRaw);
     if (guestEmailError) return;
-    const scheduledAt = new Date(`${form.date}T${form.startTime}`).toISOString();
-    const endTime     = new Date(`${form.date}T${form.endTime}`).toISOString();
+    const scheduledAt = new Date(`${form.date}T${form.startHour}:${form.startMinute}`).toISOString();
+    const endTime     = new Date(`${form.date}T${form.endHour}:${form.endMinute}`).toISOString();
     const roomCode = form.room.trim().replace(/\s+/g, "-").toLowerCase();
     onAdd({ id: Date.now(), ...form, room: roomCode, scheduledAt, endTime });
     setForm(blank);
@@ -846,19 +847,29 @@ function ScheduleTab({ upcoming, past, onAdd, onDelete, onJoin, onCopy, download
               <Label>Date & Time *</Label>
               <div style={{ display: "flex", gap: 6 }}>
                 <input type="date" value={form.date} onChange={f("date")} style={{ ...input, flex: "1 1 auto", marginBottom: 0 }} />
-                <select value={form.startTime} onChange={f("startTime")} style={{ ...input, flex: "0 0 auto", width: 110, marginBottom: 0 }}>
-                  <option value="">Start</option>
-                  {TIME_SLOTS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                <select value={form.startHour} onChange={f("startHour")} style={{ ...input, flex: "0 0 auto", width: 90, marginBottom: 0 }}>
+                  <option value="">Hour</option>
+                  {(timeFmt === '24h' ? HOUR_SLOTS_24 : HOUR_SLOTS_12).map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                </select>
+                <select value={form.startMinute} onChange={f("startMinute")} style={{ ...input, flex: "0 0 auto", width: 70, marginBottom: 0 }}>
+                  <option value="">Min</option>
+                  {MINUTE_SLOTS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                 </select>
               </div>
             </div>
           </div>
           <div style={{ marginBottom: 16 }}>
             <Label>End Time *</Label>
-            <select value={form.endTime} onChange={f("endTime")} style={{ ...input, width: 160 }}>
-              <option value="">End time</option>
-              {TIME_SLOTS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-            </select>
+            <div style={{ display: "flex", gap: 6 }}>
+              <select value={form.endHour} onChange={f("endHour")} style={{ ...input, width: 90, marginBottom: 0 }}>
+                <option value="">Hour</option>
+                {(timeFmt === '24h' ? HOUR_SLOTS_24 : HOUR_SLOTS_12).map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+              </select>
+              <select value={form.endMinute} onChange={f("endMinute")} style={{ ...input, width: 70, marginBottom: 0 }}>
+                <option value="">Min</option>
+                {MINUTE_SLOTS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+              </select>
+            </div>
             {timeError && <p style={{ fontSize: 12, color: "#b91c1c", marginTop: 6 }}>{timeError}</p>}
           </div>
           <Label>Room name</Label>
