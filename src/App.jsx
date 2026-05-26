@@ -720,6 +720,7 @@ function ScheduleTab({ upcoming, past, onAdd, onDelete, onJoin, onCopy, download
           body: JSON.stringify({
             guestEmails: emails,
             hostEmail,
+            hostName: user?.user_metadata?.full_name || user?.email || '',
             meetingTitle: form.title,
             meetingDate: form.time,
             roomCode,
