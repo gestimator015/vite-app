@@ -96,6 +96,9 @@ function SettingsTab({ user, showToast }) {
   const [enrollData, setEnrollData] = useState(null);
   const [code,       setCode]       = useState('');
   const [busy,       setBusy]       = useState(false);
+  const [nameVal,    setNameVal]    = useState(user?.user_metadata?.full_name || '');
+  const [nameSaving, setNameSaving] = useState(false);
+  const [nameMsg,    setNameMsg]    = useState('');
 
   useEffect(() => {
     async function check() {
@@ -150,7 +153,43 @@ function SettingsTab({ user, showToast }) {
 
       <div style={card}>
         <p style={{ fontSize: 13, fontWeight: 600, color: THEME.textMain, marginBottom: 4 }}>Account</p>
-        <p style={{ fontSize: 13, color: THEME.textHint }}>{user.email}</p>
+        <p style={{ fontSize: 13, color: THEME.textHint, marginBottom: 20 }}>{user.email}</p>
+
+        <p style={{ fontSize: 11, fontWeight: 600, color: THEME.textHint, textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 8 }}>
+          Full Name / Nome Completo
+        </p>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <input
+            value={nameVal}
+            onChange={e => setNameVal(e.target.value)}
+            disabled={nameSaving}
+            placeholder="Your display name"
+            style={{ flex: 1, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.1)', borderRadius: 8, padding: '9px 14px', color: THEME.textMain, fontSize: 14, outline: 'none', boxSizing: 'border-box', opacity: nameSaving ? 0.6 : 1 }}
+          />
+          <button
+            disabled={nameSaving}
+            onClick={async () => {
+              setNameSaving(true);
+              setNameMsg('');
+              const { error } = await supabase.auth.updateUser({ data: { full_name: nameVal.trim() } });
+              if (error) {
+                setNameMsg('Could not save. / Não foi possível salvar.');
+              } else {
+                setNameMsg('Saved! / Salvo!');
+                setTimeout(() => setNameMsg(''), 3000);
+              }
+              setNameSaving(false);
+            }}
+            style={{ fontSize: 13, fontWeight: 600, background: THEME.primary, color: '#fff', border: 'none', borderRadius: 8, padding: '9px 18px', cursor: nameSaving ? 'default' : 'pointer', opacity: nameSaving ? 0.6 : 1, whiteSpace: 'nowrap' }}
+          >
+            {nameSaving ? 'Saving…' : 'Save'}
+          </button>
+        </div>
+        {nameMsg && (
+          <p style={{ fontSize: 12, marginTop: 8, color: nameMsg.startsWith('Saved') ? '#34d399' : '#ef4444' }}>
+            {nameMsg}
+          </p>
+        )}
       </div>
 
       <div style={card}>
