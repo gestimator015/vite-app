@@ -362,16 +362,13 @@ export default function App({ user }) {
     }
   }, [recurring]);
 
-  // Copies a /join/ invite link with optional password in the hash
-  const copyLink = (room, password) => {
-    const base = `${window.location.origin}/join/${room}`;
-    const url = password ? `${base}#${encodeURIComponent(password)}` : base;
+  const copyLink = (room) => {
+    const url = `${window.location.origin}/join/${room}`;
     navigator.clipboard.writeText(url).then(() => showToast("Invite link copied!"));
   };
 
-  const shareRecurring = (room, title, password) => {
-    const base = `${window.location.origin}/join/${room}`;
-    const url = password ? `${base}#${encodeURIComponent(password)}` : base;
+  const shareRecurring = (room, title) => {
+    const url = `${window.location.origin}/join/${room}`;
     if (navigator.share) {
       navigator.share({ title: `Join ${title}`, text: `Join me on MeetHub: ${title}`, url })
         .catch(() => navigator.clipboard.writeText(url).then(() => showToast("Invite link copied!")));

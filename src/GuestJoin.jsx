@@ -18,18 +18,15 @@ const I = {
 
 export default function GuestJoin() {
   const { roomId } = useParams();
-  const [name, setName]               = useState("");
-  const [password, setPassword]       = useState("");
-  const [autoFilled, setAutoFilled]   = useState(false);
-  const [showPw, setShowPw]           = useState(false);
-  const [joining, setJoining]         = useState(false);
-  const [meetingUrl, setMeetingUrl]   = useState(null);
-  const [error, setError]             = useState(null);
+  const [name, setName]             = useState("");
+  const [password, setPassword]     = useState("");
+  const [showPw, setShowPw]         = useState(false);
+  const [joining, setJoining]       = useState(false);
+  const [meetingUrl, setMeetingUrl] = useState(null);
+  const [error, setError]           = useState(null);
   const nameRef = useRef(null);
 
   useEffect(() => {
-    const hash = window.location.hash.slice(1);
-    if (hash) { setPassword(decodeURIComponent(hash)); setAutoFilled(true); }
     nameRef.current?.focus();
   }, []);
 
@@ -150,16 +147,16 @@ export default function GuestJoin() {
             {/* Password */}
             <FieldLabel optional>Meeting password</FieldLabel>
             <div style={{ position: "relative", marginBottom: 28 }}>
-              <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: autoFilled ? "#0F6E56" : "#4a6741", pointerEvents: "none" }}>
-                <Icon d={I.lock} size={15} stroke={autoFilled ? "#0F6E56" : "currentColor"} />
+              <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#4a6741", pointerEvents: "none" }}>
+                <Icon d={I.lock} size={15} />
               </span>
               <input
                 value={password}
-                onChange={e => { setPassword(e.target.value); setAutoFilled(false); }}
+                onChange={e => setPassword(e.target.value)}
                 type={showPw ? "text" : "password"}
                 placeholder="Password (if required)"
                 className="gi"
-                style={inputStyle(autoFilled ? "rgba(15,110,86,.45)" : "#d0e8d8")}
+                style={inputStyle("#d0e8d8")}
               />
               <button
                 type="button"
@@ -167,11 +164,6 @@ export default function GuestJoin() {
                 style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", color: "#4a6741", background: "none", border: "none", cursor: "pointer", padding: 0 }}>
                 <Icon d={I.eye} size={15} />
               </button>
-              {autoFilled && (
-                <span style={{ position: "absolute", right: 36, top: "50%", transform: "translateY(-50%)", fontSize: 10, color: "#0F6E56", fontWeight: 600, letterSpacing: ".04em" }}>
-                  AUTO-FILLED
-                </span>
-              )}
             </div>
 
             {error && (
