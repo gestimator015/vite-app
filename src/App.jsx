@@ -14,10 +14,13 @@ const randomRoom = () => {
   return "mh-" + Array.from(bytes, b => CHARS[b % CHARS.length]).join("");
 };
 
-const fmt = (iso) => {
+const fmt = (iso, use24 = false) => {
   const d = new Date(iso);
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" }) + " · " +
-    d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
+  const datePart = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  const timePart = use24
+    ? d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false })
+    : d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true });
+  return datePart + " · " + timePart;
 };
 const timeUntil = (iso) => {
   const diff = new Date(iso) - Date.now();
@@ -91,7 +94,7 @@ const ICONS = {
 };
 
 // ─── SettingsTab ──────────────────────────────────────────────────────────────
-function SettingsTab({ user, showToast }) {
+function SettingsTab({ user, showToast, timeFmt }) {
   const [loading,    setLoading]    = useState(true);
   const [factor,     setFactor]     = useState(null);
   const [enrollData, setEnrollData] = useState(null);
@@ -100,6 +103,7 @@ function SettingsTab({ user, showToast }) {
   const [nameVal,    setNameVal]    = useState(user?.user_metadata?.full_name || '');
   const [nameSaving, setNameSaving] = useState(false);
   const [nameMsg,    setNameMsg]    = useState('');
+  const [fmtMsg,     setFmtMsg]     = useState('');
 
   useEffect(() => {
     async function check() {
@@ -191,6 +195,28 @@ function SettingsTab({ user, showToast }) {
             {nameMsg}
           </p>
         )}
+
+        <div style={{ marginTop: 24 }}>
+          <p style={{ fontSize: 11, fontWeight: 600, color: THEME.textHint, textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 8 }}>
+            Time Format / Formato de Hora
+          </p>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {['12h', '24h'].map(val => (
+              <button
+                key={val}
+                onClick={async () => {
+                  await supabase.auth.updateUser({ data: { time_format: val } });
+                  setFmtMsg('Saved! / Salvo!');
+                  setTimeout(() => setFmtMsg(''), 2000);
+                }}
+                style={{ fontSize: 13, fontWeight: 600, borderRadius: 8, padding: '8px 20px', border: timeFmt === val ? 'none' : '1px solid rgba(255,255,255,.12)', background: timeFmt === val ? '#0F6E56' : 'transparent', color: timeFmt === val ? '#fff' : THEME.textHint, cursor: 'pointer' }}
+              >
+                {val}
+              </button>
+            ))}
+          </div>
+          {fmtMsg && <p style={{ fontSize: 12, color: '#34d399', marginTop: 8 }}>{fmtMsg}</p>}
+        </div>
       </div>
 
       <div style={card}>
@@ -237,6 +263,7 @@ function SettingsTab({ user, showToast }) {
 
 // ─── App ──────────────────────────────────────────────────────────────────────
 export default function App({ user }) {
+  const timeFmt = user?.user_metadata?.time_format || '12h';
   const [tab, setTab]             = useState("quick");
   const [activeCall, setActiveCall] = useState(null);
   const [savedRooms, setSavedRooms] = useState([]);
@@ -502,9 +529,9 @@ export default function App({ user }) {
         <main style={{ flex: 1, overflowY: "auto", padding: "28px 32px" }}>
           {tab === "quick"     && <QuickJoin     onJoin={joinMeeting} onSave={saveRoom} onCopy={copyLink} joining={joining} />}
           {tab === "recurring" && <RecurringTab  recurring={recurring} onAdd={addRecurring} onEdit={updateRecurring} onDelete={deleteRecurring} onJoin={joinMeeting} onCopy={copyLink} onShare={shareRecurring} showToast={showToast} />}
-          {tab === "schedule"  && <ScheduleTab   upcoming={upcoming} past={past} onAdd={addMeeting} onDelete={deleteMeeting} onJoin={joinMeeting} onCopy={copyLink} downloadIcs={downloadIcs} googleCalUrl={googleCalUrl} outlookCalUrl={outlookCalUrl} user={user} />}
+          {tab === "schedule"  && <ScheduleTab   upcoming={upcoming} past={past} onAdd={addMeeting} onDelete={deleteMeeting} onJoin={joinMeeting} onCopy={copyLink} downloadIcs={downloadIcs} googleCalUrl={googleCalUrl} outlookCalUrl={outlookCalUrl} user={user} timeFmt={timeFmt} />}
           {tab === "saved"     && <SavedTab      rooms={savedRooms} onJoin={joinMeeting} onDelete={deleteRoom} onCopy={copyLink} />}
-          {tab === "settings" && <SettingsTab user={user} showToast={showToast} />}
+          {tab === "settings" && <SettingsTab user={user} showToast={showToast} timeFmt={timeFmt} />}
           {tab === "call" && activeCall && <CallTab call={activeCall} onEnd={endCall} iframeRef={iframeRef} />}
         </main>
       </div>
@@ -722,7 +749,7 @@ function parseGuestEmails(raw) {
   return raw.split(',').map(e => e.trim()).filter(Boolean);
 }
 
-function ScheduleTab({ upcoming, past, onAdd, onDelete, onJoin, onCopy, downloadIcs, googleCalUrl, outlookCalUrl, user }) {
+function ScheduleTab({ upcoming, past, onAdd, onDelete, onJoin, onCopy, downloadIcs, googleCalUrl, outlookCalUrl, user, timeFmt }) {
   const blank = { title: "", room: randomRoom(), date: "", startTime: "", endTime: "", notes: "", password: "" };
   const [timeError, setTimeError] = useState("");
   const [showForm, setShowForm]         = useState(false);
@@ -886,7 +913,7 @@ function ScheduleTab({ upcoming, past, onAdd, onDelete, onJoin, onCopy, download
                   <p style={{ fontWeight: 600, fontSize: 14 }}>{m.title}</p>
                   {m.room_password && <span style={{ fontSize: 10, color: THEME.textMuted, display: "flex", alignItems: "center", gap: 3 }}><Icon d={ICONS.lock} size={11} stroke={THEME.textMuted} /> password</span>}
                 </div>
-                <p style={{ fontSize: 12, color: THEME.textMuted }}>{fmt(m.scheduled_at)}<span style={{ color: "#0ea5e9", marginLeft: 8 }}>{timeUntil(m.scheduled_at)}</span></p>
+                <p style={{ fontSize: 12, color: THEME.textMuted }}>{fmt(m.scheduled_at, timeFmt === '24h')}<span style={{ color: "#0ea5e9", marginLeft: 8 }}>{timeUntil(m.scheduled_at)}</span></p>
                 {m.notes && <p style={{ fontSize: 11, color: THEME.textHint, marginTop: 3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{m.notes}</p>}
               </div>
               <div style={{ display: "flex", gap: 6, flexShrink: 0, alignItems: "center" }}>
@@ -910,7 +937,7 @@ function ScheduleTab({ upcoming, past, onAdd, onDelete, onJoin, onCopy, download
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <p style={{ fontWeight: 600, fontSize: 14 }}>{m.title}</p>
-                <p style={{ fontSize: 12, color: THEME.textMuted }}>{fmt(m.scheduled_at)}</p>
+                <p style={{ fontSize: 12, color: THEME.textMuted }}>{fmt(m.scheduled_at, timeFmt === '24h')}</p>
               </div>
               <div style={{ display: "flex", gap: 6 }}>
                 <button onClick={() => onJoin(m.room_code, m.title)} style={{ ...icoBtn, color: "#38bdf8" }} title="Join again"><Icon d={ICONS.arrow} size={14} /></button>
