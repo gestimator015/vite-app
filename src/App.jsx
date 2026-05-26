@@ -749,9 +749,111 @@ function parseGuestEmails(raw) {
   return raw.split(',').map(e => e.trim()).filter(Boolean);
 }
 
+const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+const DOW = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+
+function CalendarMonthView({ meetings, calYear, calMonth, onPrev, onNext, expandedMeetingId, onExpand, onJoin, onCopy, timeFmt }) {
+  const today = new Date();
+  const firstDay = new Date(calYear, calMonth, 1).getDay();
+  const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+  const totalCells = Math.ceil((firstDay + daysInMonth) / 7) * 7;
+
+  const meetingsOnDay = (y, mo, d) => meetings.filter(m => {
+    const dt = new Date(m.scheduled_at);
+    return dt.getFullYear() === y && dt.getMonth() === mo && dt.getDate() === d;
+  });
+
+  const isPast = (m) => new Date(m.scheduled_at) <= Date.now() - 300000;
+
+  const navBtn = { background: "transparent", border: "1px solid rgba(255,255,255,.12)", color: THEME.textHint, borderRadius: 7, width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: 14 };
+
+  const expandedMeeting = expandedMeetingId ? meetings.find(m => m.id === expandedMeetingId) : null;
+
+  return (
+    <div>
+      {/* Nav header */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+        <button style={navBtn} onClick={onPrev}>‹</button>
+        <span style={{ fontSize: 15, fontWeight: 600, color: THEME.textMain }}>{MONTH_NAMES[calMonth]} {calYear}</span>
+        <button style={navBtn} onClick={onNext}>›</button>
+      </div>
+
+      {/* Day-of-week header */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", marginBottom: 4 }}>
+        {DOW.map(d => (
+          <div key={d} style={{ fontSize: 11, color: THEME.textHint, textAlign: "center", paddingBottom: 8 }}>{d}</div>
+        ))}
+      </div>
+
+      {/* Calendar grid */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", border: "1px solid rgba(255,255,255,.06)", borderRadius: 10, overflow: "hidden" }}>
+        {Array.from({ length: totalCells }, (_, i) => {
+          const dayNum = i - firstDay + 1;
+          const isCurrentMonth = dayNum >= 1 && dayNum <= daysInMonth;
+          const isToday = isCurrentMonth && today.getFullYear() === calYear && today.getMonth() === calMonth && today.getDate() === dayNum;
+          const dayMeetings = isCurrentMonth ? meetingsOnDay(calYear, calMonth, dayNum) : [];
+
+          return (
+            <div key={i} style={{ minHeight: 80, borderRight: (i % 7 !== 6) ? "1px solid rgba(255,255,255,.06)" : "none", borderBottom: i < totalCells - 7 ? "1px solid rgba(255,255,255,.06)" : "none", padding: 6, verticalAlign: "top", background: isCurrentMonth ? "transparent" : "rgba(0,0,0,.15)" }}>
+              {isCurrentMonth && (
+                <>
+                  <div style={{ marginBottom: 2 }}>
+                    {isToday
+                      ? <span style={{ background: "#0F6E56", color: "#fff", borderRadius: "50%", width: 22, height: 22, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 600 }}>{dayNum}</span>
+                      : <span style={{ fontSize: 12, fontWeight: 600, color: THEME.textMuted }}>{dayNum}</span>
+                    }
+                  </div>
+                  {dayMeetings.map(m => (
+                    <div
+                      key={m.id}
+                      onClick={() => onExpand(expandedMeetingId === m.id ? null : m.id)}
+                      style={{ background: isPast(m) ? "rgba(100,116,139,.15)" : "rgba(15,110,86,.15)", color: isPast(m) ? THEME.textHint : "#4ade80", borderRadius: 4, fontSize: 11, padding: "2px 6px", marginTop: 3, cursor: "pointer", overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }}
+                    >
+                      {m.title}
+                    </div>
+                  ))}
+                </>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Expanded detail card */}
+      {expandedMeeting && (
+        <div style={{ ...card, border: "1px solid #0F6E56", marginTop: 16 }}>
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 4 }}>
+                <p style={{ fontWeight: 600, fontSize: 15, color: THEME.textMain }}>{expandedMeeting.title}</p>
+                {expandedMeeting.room_password && <span style={{ fontSize: 10, color: THEME.textMuted, display: "flex", alignItems: "center", gap: 3 }}><Icon d={ICONS.lock} size={11} stroke={THEME.textMuted} /> password</span>}
+              </div>
+              <p style={{ fontSize: 12, color: THEME.textMuted, marginBottom: expandedMeeting.notes ? 6 : 0 }}>{fmt(expandedMeeting.scheduled_at, timeFmt === '24h')}</p>
+              {expandedMeeting.notes && <p style={{ fontSize: 12, color: THEME.textHint }}>{expandedMeeting.notes}</p>}
+            </div>
+            <button onClick={() => onExpand(null)} style={{ background: "none", border: "none", color: THEME.textHint, cursor: "pointer", fontSize: 18, lineHeight: 1, padding: 0, flexShrink: 0 }}>×</button>
+          </div>
+          <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
+            <button onClick={() => onJoin(expandedMeeting.room_code, expandedMeeting.title)} style={{ ...primaryBtn, fontSize: 12, padding: "7px 14px" }}>
+              <Icon d={ICONS.arrow} size={13} stroke="#fff" /> Join
+            </button>
+            <button onClick={() => onCopy(expandedMeeting.room_code)} style={{ ...ghostBtn, fontSize: 12, padding: "7px 14px" }}>
+              <Icon d={ICONS.copy} size={13} /> Copy link
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ScheduleTab({ upcoming, past, onAdd, onDelete, onJoin, onCopy, downloadIcs, googleCalUrl, outlookCalUrl, user, timeFmt }) {
   const blank = { title: "", room: randomRoom(), date: "", startHour: "", startMinute: "", endHour: "", endMinute: "", guestTitle: "", notes: "", password: "" };
   const [timeError, setTimeError] = useState("");
+  const [viewMode, setViewMode]   = useState('list');
+  const [calYear, setCalYear]     = useState(new Date().getFullYear());
+  const [calMonth, setCalMonth]   = useState(new Date().getMonth());
+  const [expandedMeetingId, setExpandedMeetingId] = useState(null);
   const [showForm, setShowForm]         = useState(false);
   const [form, setForm]                 = useState(blank);
   const [guestEmailsRaw, setGuestEmailsRaw] = useState("");
@@ -827,7 +929,14 @@ function ScheduleTab({ upcoming, past, onAdd, onDelete, onJoin, onCopy, download
 
   return (
     <div className="fade-up">
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24, gap: 12 }}>
+        <div style={{ display: "flex", gap: 4 }}>
+          {['list','month','week','day'].map(v => (
+            <button key={v} onClick={() => { setViewMode(v); setExpandedMeetingId(null); }} style={{ fontSize: 12, fontWeight: 600, borderRadius: 7, padding: "6px 12px", cursor: "pointer", border: viewMode === v ? "none" : "1px solid rgba(255,255,255,.12)", background: viewMode === v ? "#0F6E56" : "transparent", color: viewMode === v ? "#fff" : THEME.textHint }}>
+              {v.charAt(0).toUpperCase() + v.slice(1)}
+            </button>
+          ))}
+        </div>
         <SectionHeader title="Meetings" sub="Schedule one-off calls" noMargin />
         <button onClick={() => { setShowForm(v => !v); setInviteWarning(false); }} style={primaryBtn} className="action-btn">
           <Icon d={ICONS.plus} size={15} stroke="#fff" /> New Meeting
@@ -919,7 +1028,26 @@ function ScheduleTab({ upcoming, past, onAdd, onDelete, onJoin, onCopy, download
         </div>
       )}
 
-      {upcoming.length > 0 && <>
+      {viewMode === 'month' && (
+        <CalendarMonthView
+          meetings={[...upcoming, ...past]}
+          calYear={calYear}
+          calMonth={calMonth}
+          onPrev={() => { if (calMonth === 0) { setCalMonth(11); setCalYear(y => y - 1); } else setCalMonth(m => m - 1); }}
+          onNext={() => { if (calMonth === 11) { setCalMonth(0); setCalYear(y => y + 1); } else setCalMonth(m => m + 1); }}
+          expandedMeetingId={expandedMeetingId}
+          onExpand={setExpandedMeetingId}
+          onJoin={onJoin}
+          onCopy={onCopy}
+          timeFmt={timeFmt}
+        />
+      )}
+
+      {(viewMode === 'week' || viewMode === 'day') && (
+        <p style={{ color: THEME.textHint, padding: 24 }}>Coming soon</p>
+      )}
+
+      {viewMode === 'list' && upcoming.length > 0 && <>
         <p style={sectionLabel}>Upcoming</p>
         <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 24 }}>
           {upcoming.map(m => (
@@ -946,7 +1074,7 @@ function ScheduleTab({ upcoming, past, onAdd, onDelete, onJoin, onCopy, download
         </div>
       </>}
 
-      {past.length > 0 && <>
+      {viewMode === 'list' && past.length > 0 && <>
         <p style={sectionLabel}>Past</p>
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {past.map(m => (
@@ -967,7 +1095,7 @@ function ScheduleTab({ upcoming, past, onAdd, onDelete, onJoin, onCopy, download
         </div>
       </>}
 
-      {upcoming.length === 0 && past.length === 0 && <EmptyState icon={ICONS.calendar} text="No meetings yet. Schedule your first one!" />}
+      {viewMode === 'list' && upcoming.length === 0 && past.length === 0 && <EmptyState icon={ICONS.calendar} text="No meetings yet. Schedule your first one!" />}
     </div>
   );
 }
