@@ -1,6 +1,6 @@
 const BREVO_API_URL = 'https://api.brevo.com/v3/smtp/email';
-const SENDER_NAME   = 'MeetHub';
-const SENDER_EMAIL  = 'noreply@meethubapp.com';
+const SENDER_NAME   = 'Metroa I.S.';
+const SENDER_EMAIL  = 'gustavogrellavieira@gmail.com';
 const MAX_GUESTS    = 20;
 
 function formatDate(iso) {
