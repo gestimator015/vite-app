@@ -94,7 +94,7 @@ const ICONS = {
 };
 
 // ─── SettingsTab ──────────────────────────────────────────────────────────────
-function SettingsTab({ user, showToast, timeFmt }) {
+function SettingsTab({ user, showToast, timeFmt, dayStart, dayEnd }) {
   const [loading,    setLoading]    = useState(true);
   const [factor,     setFactor]     = useState(null);
   const [enrollData, setEnrollData] = useState(null);
@@ -104,6 +104,9 @@ function SettingsTab({ user, showToast, timeFmt }) {
   const [nameSaving, setNameSaving] = useState(false);
   const [nameMsg,    setNameMsg]    = useState('');
   const [fmtMsg,     setFmtMsg]     = useState('');
+  const [dayStartVal, setDayStartVal] = useState(dayStart);
+  const [dayEndVal,   setDayEndVal]   = useState(dayEnd);
+  const [dayRangeMsg, setDayRangeMsg] = useState('');
 
   useEffect(() => {
     async function check() {
@@ -217,6 +220,57 @@ function SettingsTab({ user, showToast, timeFmt }) {
           </div>
           {fmtMsg && <p style={{ fontSize: 12, color: '#34d399', marginTop: 8 }}>{fmtMsg}</p>}
         </div>
+
+        <div style={{ marginTop: 24 }}>
+          <p style={{ fontSize: 11, fontWeight: 600, color: THEME.textHint, textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 8 }}>
+            Working Hours / Horário de Trabalho
+          </p>
+          <div style={{ display: 'flex', gap: 16, marginBottom: 12 }}>
+            <div>
+              <p style={{ fontSize: 11, color: THEME.textHint, marginBottom: 4 }}>Start / Início</p>
+              <select
+                value={dayStartVal}
+                onChange={e => setDayStartVal(e.target.value)}
+                style={{ background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.1)', borderRadius: 8, padding: '8px 12px', color: THEME.textMain, fontSize: 13, outline: 'none' }}
+              >
+                {(timeFmt === '24h' ? HOUR_SLOTS_24 : HOUR_SLOTS_12).map(t => (
+                  <option key={t.value} value={t.value}>{t.label}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <p style={{ fontSize: 11, color: THEME.textHint, marginBottom: 4 }}>End / Fim</p>
+              <select
+                value={dayEndVal}
+                onChange={e => setDayEndVal(e.target.value)}
+                style={{ background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.1)', borderRadius: 8, padding: '8px 12px', color: THEME.textMain, fontSize: 13, outline: 'none' }}
+              >
+                {(timeFmt === '24h' ? HOUR_SLOTS_24 : HOUR_SLOTS_12).map(t => (
+                  <option key={t.value} value={t.value}>{t.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <button
+            onClick={async () => {
+              if (parseInt(dayEndVal) <= parseInt(dayStartVal)) {
+                setDayRangeMsg('End must be after start. / O fim deve ser após o início.');
+                return;
+              }
+              await supabase.auth.updateUser({ data: { day_start: dayStartVal, day_end: dayEndVal } });
+              setDayRangeMsg('Saved! / Salvo!');
+              setTimeout(() => setDayRangeMsg(''), 3000);
+            }}
+            style={{ fontSize: 13, fontWeight: 600, background: THEME.primary, color: '#fff', border: 'none', borderRadius: 8, padding: '9px 18px', cursor: 'pointer', whiteSpace: 'nowrap' }}
+          >
+            Save
+          </button>
+          {dayRangeMsg && (
+            <p style={{ fontSize: 12, marginTop: 8, color: dayRangeMsg.startsWith('Saved') ? '#34d399' : '#ef4444' }}>
+              {dayRangeMsg}
+            </p>
+          )}
+        </div>
       </div>
 
       <div style={card}>
@@ -263,7 +317,9 @@ function SettingsTab({ user, showToast, timeFmt }) {
 
 // ─── App ──────────────────────────────────────────────────────────────────────
 export default function App({ user }) {
-  const timeFmt = user?.user_metadata?.time_format || '12h';
+  const timeFmt  = user?.user_metadata?.time_format || '12h';
+  const dayStart = user?.user_metadata?.day_start   || '08';
+  const dayEnd   = user?.user_metadata?.day_end     || '18';
   const [tab, setTab]             = useState("quick");
   const [activeCall, setActiveCall] = useState(null);
   const [savedRooms, setSavedRooms] = useState([]);
@@ -532,7 +588,7 @@ export default function App({ user }) {
           {tab === "recurring" && <RecurringTab  recurring={recurring} onAdd={addRecurring} onEdit={updateRecurring} onDelete={deleteRecurring} onJoin={joinMeeting} onCopy={copyLink} onShare={shareRecurring} showToast={showToast} />}
           {tab === "schedule"  && <ScheduleTab   upcoming={upcoming} past={past} onAdd={addMeeting} onDelete={deleteMeeting} onJoin={joinMeeting} onCopy={copyLink} downloadIcs={downloadIcs} googleCalUrl={googleCalUrl} outlookCalUrl={outlookCalUrl} user={user} timeFmt={timeFmt} />}
           {tab === "saved"     && <SavedTab      rooms={savedRooms} onJoin={joinMeeting} onDelete={deleteRoom} onCopy={copyLink} />}
-          {tab === "settings" && <SettingsTab user={user} showToast={showToast} timeFmt={timeFmt} />}
+          {tab === "settings" && <SettingsTab user={user} showToast={showToast} timeFmt={timeFmt} dayStart={dayStart} dayEnd={dayEnd} />}
           {tab === "call" && activeCall && <CallTab call={activeCall} onEnd={endCall} iframeRef={iframeRef} />}
         </main>
       </div>
