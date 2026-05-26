@@ -483,8 +483,8 @@ export default function App({ user }) {
         <nav style={{ width: 56, flexShrink: 0, borderRight: `1px solid ${THEME.borderCard}`, display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 16, gap: 4, background: THEME.bgSurface }}>
           {[
             { id: "quick",     icon: ICONS.video,    label: "Quick Join" },
-            { id: "recurring", icon: ICONS.repeat,   label: "Recurring" },
             { id: "schedule",  icon: ICONS.calendar, label: "Schedule" },
+            { id: "recurring", icon: ICONS.repeat,   label: "Recurring" },
             { id: "saved",     icon: ICONS.bookmark,  label: "Saved Rooms" },
             { id: "settings",  icon: ICONS.settings,  label: "Settings" },
             ...(activeCall ? [{ id: "call", icon: ICONS.link, label: "Active Call" }] : []),
