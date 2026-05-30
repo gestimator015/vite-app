@@ -786,17 +786,23 @@ function CalendarWeekView({ meetings, weekStart, onPrevWeek, onNextWeek, onToday
     : `${h === 0 ? 12 : h > 12 ? h - 12 : h} ${h < 12 ? "AM" : "PM"}`;
 
   // Meetings in this week, within day range
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekEnd.getDate() + 6);
+  weekEnd.setHours(23, 59, 59, 999);
+
   const weekMeetings = meetings.filter(m => {
     const dt = new Date(m.scheduled_at);
-    dt.setHours(0, 0, 0, 0);
-    return dt >= weekStart && dt <= days[6];
+    return dt >= weekStart && dt <= weekEnd;
   });
 
   // For a meeting, get its day column index (0=Sun)
   const dayIndex = (m) => {
     const dt = new Date(m.scheduled_at);
-    dt.setHours(0, 0, 0, 0);
-    for (let i = 0; i < 7; i++) if (dt.getTime() === days[i].getTime()) return i;
+    const dtDate = new Date(dt.getFullYear(), dt.getMonth(), dt.getDate());
+    for (let i = 0; i < 7; i++) {
+      const dayDate = new Date(days[i].getFullYear(), days[i].getMonth(), days[i].getDate());
+      if (dtDate.getTime() === dayDate.getTime()) return i;
+    }
     return -1;
   };
 
@@ -1121,7 +1127,10 @@ function ScheduleTab({ upcoming, past, onAdd, onDelete, onJoin, onCopy, download
   }
 
   const submit = async () => {
-    if (!form.title || !form.date || !form.startHour || !form.startMinute || !form.endHour || !form.endMinute) return;
+    if (!form.title || !form.date || !form.startHour || !form.startMinute || !form.endHour || !form.endMinute) {
+      setTimeError("Please fill in all required fields. / Preencha todos os campos obrigatórios.");
+      return;
+    }
     const startTotal = parseInt(form.startHour) * 60 + parseInt(form.startMinute);
     const endTotal   = parseInt(form.endHour)   * 60 + parseInt(form.endMinute);
     if (endTotal <= startTotal) {
