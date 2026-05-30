@@ -831,7 +831,7 @@ function CalendarWeekView({ meetings, weekStart, onPrevWeek, onNextWeek, onToday
             {days.map((d, i) => {
               const isToday = d.getTime() === today.getTime();
               return (
-                <div key={i} style={{ textAlign: "center", paddingBottom: 8, paddingTop: 4 }}>
+                <div key={i} style={{ textAlign: "center", paddingBottom: 8, paddingTop: 4, borderRight: i < 6 ? "1px solid rgba(255,255,255,.1)" : "none" }}>
                   <div style={{ fontSize: 11, color: THEME.textHint, marginBottom: 4 }}>{DOW[i]}</div>
                   {isToday
                     ? <span style={{ background: "#0F6E56", color: "#fff", borderRadius: "50%", width: 24, height: 24, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700 }}>{d.getDate()}</span>
@@ -851,7 +851,7 @@ function CalendarWeekView({ meetings, weekStart, onPrevWeek, onNextWeek, onToday
                 <div key={hour} style={{ display: "grid", gridTemplateColumns: "56px repeat(7, 1fr)", height: ROW_H }}>
                   <div style={{ fontSize: 11, color: THEME.textHint, verticalAlign: "top", paddingTop: 4, paddingRight: 8, textAlign: "right" }}>{hourLabel(hour)}</div>
                   {days.map((_, ci) => (
-                    <div key={ci} style={{ borderBottom: "1px solid rgba(255,255,255,.04)", borderLeft: "1px solid rgba(255,255,255,.04)" }} />
+                    <div key={ci} style={{ borderBottom: "1px solid rgba(255,255,255,.04)", borderRight: ci < 6 ? "1px solid rgba(255,255,255,.1)" : "none" }} />
                   ))}
                 </div>
               );
@@ -1019,7 +1019,7 @@ function CalendarMonthView({ meetings, calYear, calMonth, onPrev, onNext, expand
       </div>
 
       {/* Calendar grid */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", border: "1px solid rgba(255,255,255,.06)", borderRadius: 10, overflow: "hidden" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", border: "1px solid rgba(0,0,0,.12)", borderRadius: 10, overflow: "hidden" }}>
         {Array.from({ length: totalCells }, (_, i) => {
           const dayNum = i - firstDay + 1;
           const isCurrentMonth = dayNum >= 1 && dayNum <= daysInMonth;
@@ -1027,7 +1027,7 @@ function CalendarMonthView({ meetings, calYear, calMonth, onPrev, onNext, expand
           const dayMeetings = isCurrentMonth ? meetingsOnDay(calYear, calMonth, dayNum) : [];
 
           return (
-            <div key={i} style={{ minHeight: 80, borderRight: (i % 7 !== 6) ? "1px solid rgba(255,255,255,.06)" : "none", borderBottom: i < totalCells - 7 ? "1px solid rgba(255,255,255,.06)" : "none", padding: 6, verticalAlign: "top", background: isCurrentMonth ? "transparent" : "rgba(0,0,0,.15)" }}>
+            <div key={i} style={{ minHeight: 80, borderRight: (i % 7 !== 6) ? "1px solid rgba(0,0,0,.12)" : "none", borderBottom: i < totalCells - 7 ? "1px solid rgba(0,0,0,.12)" : "none", padding: 6, verticalAlign: "top", background: isCurrentMonth ? "transparent" : "rgba(0,0,0,.15)" }}>
               {isCurrentMonth && (
                 <>
                   <div style={{ marginBottom: 2 }}>
