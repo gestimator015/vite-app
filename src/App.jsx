@@ -586,7 +586,7 @@ export default function App({ user }) {
         <main style={{ flex: 1, overflowY: "auto", padding: "28px 32px" }}>
           {tab === "quick"     && <QuickJoin     onJoin={joinMeeting} onSave={saveRoom} onCopy={copyLink} joining={joining} />}
           {tab === "recurring" && <RecurringTab  recurring={recurring} onAdd={addRecurring} onEdit={updateRecurring} onDelete={deleteRecurring} onJoin={joinMeeting} onCopy={copyLink} onShare={shareRecurring} showToast={showToast} />}
-          {tab === "schedule"  && <ScheduleTab   upcoming={upcoming} past={past} onAdd={addMeeting} onDelete={deleteMeeting} onJoin={joinMeeting} onCopy={copyLink} downloadIcs={downloadIcs} googleCalUrl={googleCalUrl} outlookCalUrl={outlookCalUrl} user={user} timeFmt={timeFmt} />}
+          {tab === "schedule"  && <ScheduleTab   upcoming={upcoming} past={past} onAdd={addMeeting} onDelete={deleteMeeting} onJoin={joinMeeting} onCopy={copyLink} downloadIcs={downloadIcs} googleCalUrl={googleCalUrl} outlookCalUrl={outlookCalUrl} user={user} timeFmt={timeFmt} dayStart={dayStart} dayEnd={dayEnd} />}
           {tab === "saved"     && <SavedTab      rooms={savedRooms} onJoin={joinMeeting} onDelete={deleteRoom} onCopy={copyLink} />}
           {tab === "settings" && <SettingsTab user={user} showToast={showToast} timeFmt={timeFmt} dayStart={dayStart} dayEnd={dayEnd} />}
           {tab === "call" && activeCall && <CallTab call={activeCall} onEnd={endCall} iframeRef={iframeRef} />}
@@ -757,6 +757,183 @@ function RecurringTab({ recurring, onAdd, onEdit, onDelete, onJoin, onCopy, onSh
   );
 }
 
+function CalendarWeekView({ meetings, weekStart, onPrevWeek, onNextWeek, onToday, expandedMeetingId, onExpand, onJoin, onCopy, timeFmt, dayStart, dayEnd }) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const startHourInt = parseInt(dayStart);
+  const endHourInt   = parseInt(dayEnd);
+  const hoursShown   = endHourInt - startHourInt + 1;
+  const ROW_H        = 60;
+
+  // Build the 7 day dates for this week
+  const days = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(weekStart);
+    d.setDate(d.getDate() + i);
+    return d;
+  });
+
+  // Range label
+  const rangeLabel = (() => {
+    const s = days[0], e = days[6];
+    const sStr = s.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    const eStr = e.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+    return `${sStr} – ${eStr}`;
+  })();
+
+  // Hour label helper
+  const hourLabel = (h) => timeFmt === '24h'
+    ? `${String(h).padStart(2, "0")}:00`
+    : `${h === 0 ? 12 : h > 12 ? h - 12 : h} ${h < 12 ? "AM" : "PM"}`;
+
+  // Meetings in this week, within day range
+  const weekMeetings = meetings.filter(m => {
+    const dt = new Date(m.scheduled_at);
+    dt.setHours(0, 0, 0, 0);
+    return dt >= weekStart && dt <= days[6];
+  });
+
+  // For a meeting, get its day column index (0=Sun)
+  const dayIndex = (m) => {
+    const dt = new Date(m.scheduled_at);
+    dt.setHours(0, 0, 0, 0);
+    for (let i = 0; i < 7; i++) if (dt.getTime() === days[i].getTime()) return i;
+    return -1;
+  };
+
+  // Current time position
+  const now = new Date();
+  const todayInWeek = days.some(d => d.getTime() === today.getTime());
+  const nowFraction = (now.getHours() + now.getMinutes() / 60 - startHourInt) / hoursShown;
+  const nowTop = nowFraction * hoursShown * ROW_H;
+
+  const navBtn = { background: "transparent", border: "1px solid rgba(255,255,255,.12)", color: THEME.textHint, borderRadius: 7, height: 30, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: 14, padding: "0 10px" };
+
+  const expandedMeeting = expandedMeetingId ? meetings.find(m => m.id === expandedMeetingId) : null;
+
+  const isPast = (m) => new Date(m.scheduled_at) <= Date.now() - 300000;
+
+  return (
+    <div>
+      {/* Nav header */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
+        <button style={navBtn} onClick={onPrevWeek}>‹</button>
+        <button style={{ ...navBtn, fontSize: 12, fontWeight: 600 }} onClick={onToday}>Today</button>
+        <button style={navBtn} onClick={onNextWeek}>›</button>
+        <span style={{ fontSize: 15, fontWeight: 600, color: THEME.textMain, marginLeft: 8 }}>{rangeLabel}</span>
+      </div>
+
+      {/* Scrollable grid container */}
+      <div style={{ overflowX: "auto" }}>
+        <div style={{ minWidth: 600 }}>
+          {/* Day header row */}
+          <div style={{ display: "grid", gridTemplateColumns: "56px repeat(7, 1fr)", marginBottom: 0, borderBottom: "1px solid rgba(255,255,255,.08)" }}>
+            <div />
+            {days.map((d, i) => {
+              const isToday = d.getTime() === today.getTime();
+              return (
+                <div key={i} style={{ textAlign: "center", paddingBottom: 8, paddingTop: 4 }}>
+                  <div style={{ fontSize: 11, color: THEME.textHint, marginBottom: 4 }}>{DOW[i]}</div>
+                  {isToday
+                    ? <span style={{ background: "#0F6E56", color: "#fff", borderRadius: "50%", width: 24, height: 24, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700 }}>{d.getDate()}</span>
+                    : <span style={{ fontSize: 13, fontWeight: 600, color: THEME.textMuted }}>{d.getDate()}</span>
+                  }
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Time slot grid */}
+          <div style={{ position: "relative" }}>
+            {/* Hour rows */}
+            {Array.from({ length: hoursShown }, (_, idx) => {
+              const hour = startHourInt + idx;
+              return (
+                <div key={hour} style={{ display: "grid", gridTemplateColumns: "56px repeat(7, 1fr)", height: ROW_H }}>
+                  <div style={{ fontSize: 11, color: THEME.textHint, verticalAlign: "top", paddingTop: 4, paddingRight: 8, textAlign: "right" }}>{hourLabel(hour)}</div>
+                  {days.map((_, ci) => (
+                    <div key={ci} style={{ borderBottom: "1px solid rgba(255,255,255,.04)", borderLeft: "1px solid rgba(255,255,255,.04)" }} />
+                  ))}
+                </div>
+              );
+            })}
+
+            {/* Current time indicator */}
+            {todayInWeek && nowFraction >= 0 && nowFraction <= 1 && (
+              <div style={{ position: "absolute", top: nowTop, left: 56, right: 0, height: 2, background: "#ef4444", zIndex: 10, pointerEvents: "none" }}>
+                <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#ef4444", position: "absolute", left: -4, top: -3 }} />
+              </div>
+            )}
+
+            {/* Meeting blocks — absolutely positioned per day column */}
+            {weekMeetings.map(m => {
+              const colIdx = dayIndex(m);
+              if (colIdx < 0) return null;
+              const dt = new Date(m.scheduled_at);
+              const startH = dt.getHours() + dt.getMinutes() / 60;
+              const endDt  = m.end_time ? new Date(m.end_time) : new Date(dt.getTime() + 3600000);
+              const endH   = endDt.getHours() + endDt.getMinutes() / 60;
+              const top    = (startH - startHourInt) * ROW_H;
+              const height = Math.max((endH - startH) * ROW_H, 24);
+
+              // Column width: (100% - 56px) / 7, offset by colIdx
+              return (
+                <div
+                  key={m.id}
+                  onClick={() => onExpand(expandedMeetingId === m.id ? null : m.id)}
+                  style={{
+                    position: "absolute",
+                    top,
+                    left: `calc(56px + (100% - 56px) / 7 * ${colIdx} + 4px)`,
+                    width: `calc((100% - 56px) / 7 - 8px)`,
+                    height,
+                    background: isPast(m) ? "rgba(100,116,139,.15)" : "rgba(15,110,86,.25)",
+                    borderLeft: `3px solid ${isPast(m) ? THEME.textHint : "#0F6E56"}`,
+                    borderRadius: 4,
+                    padding: "2px 6px",
+                    fontSize: 11,
+                    color: THEME.textMain,
+                    overflow: "hidden",
+                    cursor: "pointer",
+                    boxSizing: "border-box",
+                    zIndex: 5,
+                  }}
+                >
+                  <div style={{ fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{m.title}</div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* Expanded detail card */}
+      {expandedMeeting && (
+        <div style={{ ...card, border: "1px solid #0F6E56", marginTop: 16 }}>
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 4 }}>
+                <p style={{ fontWeight: 600, fontSize: 15, color: THEME.textMain }}>{expandedMeeting.title}</p>
+                {expandedMeeting.room_password && <span style={{ fontSize: 10, color: THEME.textMuted, display: "flex", alignItems: "center", gap: 3 }}><Icon d={ICONS.lock} size={11} stroke={THEME.textMuted} /> password</span>}
+              </div>
+              <p style={{ fontSize: 12, color: THEME.textMuted, marginBottom: expandedMeeting.notes ? 6 : 0 }}>{fmt(expandedMeeting.scheduled_at, timeFmt === '24h')}</p>
+              {expandedMeeting.notes && <p style={{ fontSize: 12, color: THEME.textHint }}>{expandedMeeting.notes}</p>}
+            </div>
+            <button onClick={() => onExpand(null)} style={{ background: "none", border: "none", color: THEME.textHint, cursor: "pointer", fontSize: 18, lineHeight: 1, padding: 0, flexShrink: 0 }}>×</button>
+          </div>
+          <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
+            <button onClick={() => onJoin(expandedMeeting.room_code, expandedMeeting.title)} style={{ ...primaryBtn, fontSize: 12, padding: "7px 14px" }}>
+              <Icon d={ICONS.arrow} size={13} stroke="#fff" /> Join
+            </button>
+            <button onClick={() => onCopy(expandedMeeting.room_code)} style={{ ...ghostBtn, fontSize: 12, padding: "7px 14px" }}>
+              <Icon d={ICONS.copy} size={13} /> Copy link
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Schedule Tab ─────────────────────────────────────────────────────────────
 function CalendarMenu({ m, downloadIcs, googleCalUrl, outlookCalUrl }) {
   const [open, setOpen] = useState(false);
@@ -903,13 +1080,18 @@ function CalendarMonthView({ meetings, calYear, calMonth, onPrev, onNext, expand
   );
 }
 
-function ScheduleTab({ upcoming, past, onAdd, onDelete, onJoin, onCopy, downloadIcs, googleCalUrl, outlookCalUrl, user, timeFmt }) {
+function ScheduleTab({ upcoming, past, onAdd, onDelete, onJoin, onCopy, downloadIcs, googleCalUrl, outlookCalUrl, user, timeFmt, dayStart, dayEnd }) {
   const blank = { title: "", room: randomRoom(), date: "", startHour: "", startMinute: "", endHour: "", endMinute: "", guestTitle: "", notes: "", password: "" };
   const [timeError, setTimeError] = useState("");
   const [viewMode, setViewMode]   = useState('list');
   const [calYear, setCalYear]     = useState(new Date().getFullYear());
   const [calMonth, setCalMonth]   = useState(new Date().getMonth());
   const [expandedMeetingId, setExpandedMeetingId] = useState(null);
+  const [weekStart, setWeekStart] = useState(() => {
+    const d = new Date(); d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() - d.getDay());
+    return d;
+  });
   const [showForm, setShowForm]         = useState(false);
   const [form, setForm]                 = useState(blank);
   const [guestEmailsRaw, setGuestEmailsRaw] = useState("");
@@ -1099,7 +1281,24 @@ function ScheduleTab({ upcoming, past, onAdd, onDelete, onJoin, onCopy, download
         />
       )}
 
-      {(viewMode === 'week' || viewMode === 'day') && (
+      {viewMode === 'week' && (
+        <CalendarWeekView
+          meetings={[...upcoming, ...past]}
+          weekStart={weekStart}
+          onPrevWeek={() => setWeekStart(d => { const n = new Date(d); n.setDate(n.getDate() - 7); return n; })}
+          onNextWeek={() => setWeekStart(d => { const n = new Date(d); n.setDate(n.getDate() + 7); return n; })}
+          onToday={() => { const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - d.getDay()); setWeekStart(d); }}
+          expandedMeetingId={expandedMeetingId}
+          onExpand={setExpandedMeetingId}
+          onJoin={onJoin}
+          onCopy={onCopy}
+          timeFmt={timeFmt}
+          dayStart={dayStart}
+          dayEnd={dayEnd}
+        />
+      )}
+
+      {viewMode === 'day' && (
         <p style={{ color: THEME.textHint, padding: 24 }}>Coming soon</p>
       )}
 
