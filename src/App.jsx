@@ -760,9 +760,9 @@ function RecurringTab({ recurring, onAdd, onEdit, onDelete, onJoin, onCopy, onSh
 function CalendarWeekView({ meetings, weekStart, onPrevWeek, onNextWeek, onToday, expandedMeetingId, onExpand, onJoin, onCopy, timeFmt, dayStart, dayEnd }) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const startHourInt = parseInt(dayStart);
-  const endHourInt   = parseInt(dayEnd);
-  const hoursShown   = endHourInt - startHourInt + 1;
+  const startHourInt = 0;
+  const endHourInt   = 23;
+  const hoursShown   = 24;
   const ROW_H        = 60;
 
   // Build the 7 day dates for this week
@@ -814,6 +814,14 @@ function CalendarWeekView({ meetings, weekStart, onPrevWeek, onNextWeek, onToday
 
   const navBtn = { background: "transparent", border: "1px solid rgba(255,255,255,.12)", color: THEME.textHint, borderRadius: 7, height: 30, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: 14, padding: "0 10px" };
 
+  const scrollRef = useRef(null);
+  useEffect(() => {
+    if (!scrollRef.current) return;
+    const now = new Date();
+    const scrollTo = (now.getHours() - 1) * 60;
+    scrollRef.current.scrollTop = Math.max(0, scrollTo);
+  }, []);
+
   const expandedMeeting = expandedMeetingId ? meetings.find(m => m.id === expandedMeetingId) : null;
 
   const isPast = (m) => new Date(m.scheduled_at) <= Date.now() - 300000;
@@ -829,7 +837,7 @@ function CalendarWeekView({ meetings, weekStart, onPrevWeek, onNextWeek, onToday
       </div>
 
       {/* Scrollable grid container */}
-      <div style={{ overflowX: "auto" }}>
+      <div ref={scrollRef} style={{ overflow: "auto", maxHeight: "70vh" }}>
         <div style={{ minWidth: 600 }}>
           {/* Day header row */}
           <div style={{ display: "grid", gridTemplateColumns: "56px repeat(7, 1fr)", marginBottom: 0, borderBottom: "1px solid rgba(255,255,255,.08)" }}>
