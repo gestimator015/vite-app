@@ -57,7 +57,7 @@ function generateIcs(title, dateIso, roomCode, password, sequence = 0, guestTitl
   ].join('\r\n');
 }
 
-function buildGuestHtml({ hostName, meetingTitle, meetingDate, joinLink, password, tz, rsvpUrl }) {
+function buildGuestHtml({ hostName, meetingTitle, meetingDate, joinLink, password, tz }) {
   const dateEN = formatDate(meetingDate, tz);
   const datePT = formatDatePT(meetingDate, tz);
 
@@ -67,13 +67,6 @@ function buildGuestHtml({ hostName, meetingTitle, meetingDate, joinLink, passwor
   const passwordBlockPT = password
     ? `<p><strong>Senha:</strong> ${password}</p>`
     : `<p>Nenhuma senha necessária.</p>`;
-
-  const rsvpBlockEN = rsvpUrl
-    ? `<div style="margin-top:16px;"><p style="font-size:13px;font-weight:600;color:#4a6741;margin:0 0 8px;">Will you attend?</p><a href="${rsvpUrl}" style="display:inline-block;border:1px solid #0F6E56;color:#0F6E56;text-decoration:none;padding:10px 24px;border-radius:10px;font-size:14px;font-weight:600;">Respond &#x2192;</a></div>`
-    : '';
-  const rsvpBlockPT = rsvpUrl
-    ? `<div style="margin-top:16px;"><p style="font-size:13px;font-weight:600;color:#4a6741;margin:0 0 8px;">Você vai participar?</p><a href="${rsvpUrl}" style="display:inline-block;border:1px solid #0F6E56;color:#0F6E56;text-decoration:none;padding:10px 24px;border-radius:10px;font-size:14px;font-weight:600;">Responder &#x2192;</a></div>`
-    : '';
 
   return `<!DOCTYPE html>
 <html>
@@ -95,7 +88,6 @@ function buildGuestHtml({ hostName, meetingTitle, meetingDate, joinLink, passwor
 
       <a href="${joinLink}" style="display:inline-block;background:#0F6E56;color:#ffffff;text-decoration:none;padding:13px 28px;border-radius:10px;font-size:15px;font-weight:600;margin-bottom:20px;">Join Meeting</a>
       <p style="font-size:12px;color:#7a9e7a;word-break:break-all;">Or copy this link: ${joinLink}</p>
-      ${rsvpBlockEN}
 
       <hr style="border:none;border-top:1px solid #e4ede4;margin:28px 0;">
 
@@ -110,7 +102,6 @@ function buildGuestHtml({ hostName, meetingTitle, meetingDate, joinLink, passwor
 
       <a href="${joinLink}" style="display:inline-block;background:#0F6E56;color:#ffffff;text-decoration:none;padding:13px 28px;border-radius:10px;font-size:15px;font-weight:600;margin-bottom:20px;">Entrar na Reunião</a>
       <p style="font-size:12px;color:#7a9e7a;word-break:break-all;">Ou copie este link: ${joinLink}</p>
-      ${rsvpBlockPT}
     </div>
     <div style="background:#f8faf8;padding:16px 32px;text-align:center;">
       <p style="margin:0;font-size:11px;color:#7a9e7a;">Powered by MeetHub · Jitsi as a Service</p>
@@ -215,10 +206,7 @@ export default async function handler(req, res) {
   let sent = 0;
 
   for (const r of recipients) {
-    const rsvpUrl = r.rsvp_token
-      ? `${publicUrl}/rsvp?token=${r.rsvp_token}`
-      : null;
-    const guestHtml = buildGuestHtml({ hostName, meetingTitle: displayTitle, meetingDate, joinLink, password, tz: timezone, rsvpUrl });
+    const guestHtml = buildGuestHtml({ hostName, meetingTitle: displayTitle, meetingDate, joinLink, password, tz: timezone });
     try {
       const response = await fetch(BREVO_API_URL, {
         method: 'POST',
