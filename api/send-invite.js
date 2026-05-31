@@ -22,7 +22,7 @@ function formatDatePT(iso) {
   }) + ' às ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 }
 
-function generateIcs(title, dateIso, roomCode, password) {
+function generateIcs(title, dateIso, roomCode, password, sequence = 0) {
   const publicUrl = process.env.VITE_PUBLIC_URL || 'https://vite-app-azure.vercel.app';
   const joinLink  = `${publicUrl}/join/${roomCode}`;
   const start     = new Date(dateIso).getTime();
@@ -37,10 +37,13 @@ function generateIcs(title, dateIso, roomCode, password) {
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
     'PRODID:-//MeetHub//EN',
+    'METHOD:REQUEST',
     'BEGIN:VEVENT',
     `DTSTART:${dtstart}`,
     `DTEND:${dtend}`,
     `DTSTAMP:${dtstamp}`,
+    `ORGANIZER;CN=${SENDER_NAME}:mailto:${SENDER_EMAIL}`,
+    `SEQUENCE:${sequence}`,
     `SUMMARY:${title}`,
     `DESCRIPTION:${desc}`,
     `LOCATION:${joinLink}`,
@@ -171,8 +174,9 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Email service not configured' });
   }
 
-  const { guestEmails, hostEmail, hostName: rawHostName, meetingTitle, meetingDate, roomCode, password } = req.body;
+  const { guestEmails, hostEmail, hostName: rawHostName, meetingTitle, meetingDate, roomCode, password, sequence: rawSequence } = req.body;
   const hostName = rawHostName || hostEmail;
+  const sequence = Number.isInteger(rawSequence) && rawSequence >= 0 ? rawSequence : 0;
 
   if (!Array.isArray(guestEmails) || guestEmails.length === 0) {
     return res.status(400).json({ error: 'No guest emails provided' });
@@ -185,7 +189,7 @@ export default async function handler(req, res) {
   const joinLink     = `${publicUrl}/join/${roomCode}`;
   const guestSubject = `${hostName} is inviting you to ${meetingTitle} / ${hostName} está te convidando para ${meetingTitle}`;
   const guestHtml    = buildGuestHtml({ hostName, meetingTitle, meetingDate, joinLink, password });
-  const icsString    = generateIcs(meetingTitle, meetingDate, roomCode, password);
+  const icsString    = generateIcs(meetingTitle, meetingDate, roomCode, password, sequence);
   const icsBase64    = Buffer.from(icsString).toString('base64');
   const attachment   = [{ content: icsBase64, name: 'meeting.ics' }];
 

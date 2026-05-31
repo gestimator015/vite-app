@@ -14,6 +14,13 @@ const randomRoom = () => {
   return "mh-" + Array.from(bytes, b => CHARS[b % CHARS.length]).join("");
 };
 
+const PW_ALPHABET = "abcdefghijkmnpqrstuvwxyz23456789";
+const generatePassword = () => {
+  const bytes = new Uint8Array(8);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, b => PW_ALPHABET[b % 32]).join("");
+};
+
 const fmt = (iso, use24 = false) => {
   const d = new Date(iso);
   const datePart = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
@@ -1408,7 +1415,7 @@ function ScheduleTab({ upcoming, past, onAdd, onUpdate, onDelete, onJoin, onCopy
           ))}
         </div>
         <SectionHeader title="Meetings" sub="Schedule one-off calls" noMargin />
-        <button onClick={() => { setShowForm(v => !v); setInviteWarning(false); }} style={primaryBtn} className="action-btn">
+        <button onClick={() => { setForm(p => ({ ...blank, password: generatePassword() })); setShowForm(true); setInviteWarning(false); }} style={primaryBtn} className="action-btn">
           <Icon d={ICONS.plus} size={15} stroke="#fff" /> New Meeting
         </button>
       </div>
@@ -1467,11 +1474,14 @@ function ScheduleTab({ upcoming, past, onAdd, onUpdate, onDelete, onJoin, onCopy
           <Label>Notes (optional)</Label>
           <textarea value={form.notes} onChange={f("notes")} style={{ ...input, height: 70, resize: "none", marginBottom: 16 }} placeholder="Agenda, links…" />
           <Label>Password (optional)</Label>
-          <div style={{ position: "relative", marginBottom: 16 }}>
-            <span style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", color: THEME.textHint, pointerEvents: "none" }}>
-              <Icon d={ICONS.lock} size={14} />
-            </span>
-            <input value={form.password} onChange={f("password")} style={{ ...input, paddingLeft: 34 }} placeholder="Leave blank for no password" />
+          <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+            <div style={{ position: "relative", flex: 1 }}>
+              <span style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", color: THEME.textHint, pointerEvents: "none" }}>
+                <Icon d={ICONS.lock} size={14} />
+              </span>
+              <input value={form.password} onChange={f("password")} disabled={!!editingId} style={{ ...input, paddingLeft: 34, opacity: editingId ? .5 : 1 }} placeholder="Leave blank for no password" />
+            </div>
+            {!editingId && <button onClick={() => setForm(p => ({ ...p, password: generatePassword() }))} style={ghostBtn}>Generate</button>}
           </div>
           {!editingId && <>
             <Label>Guest Emails / E-mails dos Convidados (optional)</Label>
