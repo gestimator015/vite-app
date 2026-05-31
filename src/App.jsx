@@ -409,7 +409,8 @@ export default function App({ user }) {
         end_time: m.endTime,
         notes: m.notes,
         room_password: m.password,
-        guest_title: m.guestTitle || null
+        guest_title: m.guestTitle || null,
+        ics_uid: `${m.room}@meethub`,
       })
       .select('id, title, room_code, scheduled_at, end_time, notes, room_password, guest_title')
       .single();
@@ -420,6 +421,39 @@ export default function App({ user }) {
           .slice(0, 50)
       );
       showToast("Meeting scheduled!");
+
+      const rawEmails = Array.isArray(m.guestEmails) ? m.guestEmails : [];
+      const normalized = [...new Set(rawEmails.map(e => e.trim().toLowerCase()).filter(Boolean))];
+      if (normalized.length > 0) {
+        const { error: guestErr } = await supabase
+          .from('meeting_guests')
+          .insert(normalized.map(email => ({ scheduled_meeting_id: data.id, email })));
+        if (guestErr) console.error("meeting_guests insert failed");
+      }
+    }
+  }, [meetings]);
+
+  const updateMeeting = useCallback(async (id, updates) => {
+    const { data, error } = await supabase
+      .from('scheduled_meetings')
+      .update({
+        title: updates.title,
+        scheduled_at: updates.scheduledAt,
+        end_time: updates.endTime,
+        notes: updates.notes,
+        room_password: updates.password,
+        guest_title: updates.guestTitle || null,
+      })
+      .eq('id', id)
+      .eq('user_id', user.id)
+      .select('id, title, room_code, scheduled_at, end_time, notes, room_password, guest_title')
+      .single();
+    if (!error && data) {
+      setMeetings(prev =>
+        prev.map(m => m.id === id ? data : m)
+          .sort((a, b) => new Date(a.scheduled_at) - new Date(b.scheduled_at))
+      );
+      showToast("Meeting updated!");
     }
   }, [meetings]);
 
@@ -586,7 +620,7 @@ export default function App({ user }) {
         <main style={{ flex: 1, overflowY: "auto", padding: "28px 32px" }}>
           {tab === "quick"     && <QuickJoin     onJoin={joinMeeting} onSave={saveRoom} onCopy={copyLink} joining={joining} />}
           {tab === "recurring" && <RecurringTab  recurring={recurring} onAdd={addRecurring} onEdit={updateRecurring} onDelete={deleteRecurring} onJoin={joinMeeting} onCopy={copyLink} onShare={shareRecurring} showToast={showToast} />}
-          {tab === "schedule"  && <ScheduleTab   upcoming={upcoming} past={past} onAdd={addMeeting} onDelete={deleteMeeting} onJoin={joinMeeting} onCopy={copyLink} downloadIcs={downloadIcs} googleCalUrl={googleCalUrl} outlookCalUrl={outlookCalUrl} user={user} timeFmt={timeFmt} dayStart={dayStart} dayEnd={dayEnd} />}
+          {tab === "schedule"  && <ScheduleTab   upcoming={upcoming} past={past} onAdd={addMeeting} onUpdate={updateMeeting} onDelete={deleteMeeting} onJoin={joinMeeting} onCopy={copyLink} downloadIcs={downloadIcs} googleCalUrl={googleCalUrl} outlookCalUrl={outlookCalUrl} user={user} timeFmt={timeFmt} dayStart={dayStart} dayEnd={dayEnd} />}
           {tab === "saved"     && <SavedTab      rooms={savedRooms} onJoin={joinMeeting} onDelete={deleteRoom} onCopy={copyLink} />}
           {tab === "settings" && <SettingsTab user={user} showToast={showToast} timeFmt={timeFmt} dayStart={dayStart} dayEnd={dayEnd} />}
           {tab === "call" && activeCall && <CallTab call={activeCall} onEnd={endCall} iframeRef={iframeRef} />}
@@ -1237,9 +1271,10 @@ function CalendarMonthView({ meetings, calYear, calMonth, onPrev, onNext, expand
   );
 }
 
-function ScheduleTab({ upcoming, past, onAdd, onDelete, onJoin, onCopy, downloadIcs, googleCalUrl, outlookCalUrl, user, timeFmt, dayStart, dayEnd }) {
+function ScheduleTab({ upcoming, past, onAdd, onUpdate, onDelete, onJoin, onCopy, downloadIcs, googleCalUrl, outlookCalUrl, user, timeFmt, dayStart, dayEnd }) {
   const blank = { title: "", room: randomRoom(), date: "", startHour: "", startMinute: "", endHour: "", endMinute: "", guestTitle: "", notes: "", password: "" };
   const [timeError, setTimeError] = useState("");
+  const [editingId, setEditingId] = useState(null);
   const [viewMode, setViewMode]   = useState('list');
   const [calYear, setCalYear]     = useState(new Date().getFullYear());
   const [calMonth, setCalMonth]   = useState(new Date().getMonth());
@@ -1260,6 +1295,30 @@ function ScheduleTab({ upcoming, past, onAdd, onDelete, onJoin, onCopy, download
   const [guestEmailError, setGuestEmailError] = useState("");
   const [inviteWarning, setInviteWarning] = useState(false);
   const f = k => e => setForm(p => ({ ...p, [k]: e.target.value }));
+
+  const startEditMeeting = (m) => {
+    const s = new Date(m.scheduled_at);
+    const e = m.end_time ? new Date(m.end_time) : new Date(s.getTime() + 3600000);
+    setForm({
+      title: m.title,
+      room: m.room_code,
+      date: `${s.getFullYear()}-${String(s.getMonth()+1).padStart(2,'0')}-${String(s.getDate()).padStart(2,'0')}`,
+      startHour: String(s.getHours()).padStart(2,'0'),
+      startMinute: String(s.getMinutes()).padStart(2,'0'),
+      endHour: String(e.getHours()).padStart(2,'0'),
+      endMinute: String(e.getMinutes()).padStart(2,'0'),
+      guestTitle: m.guest_title || '',
+      notes: m.notes || '',
+      password: m.room_password || '',
+    });
+    setEditingId(m.id);
+    setTimeError('');
+    setGuestEmailsRaw('');
+    setGuestEmails([]);
+    setGuestEmailError('');
+    setInviteWarning(false);
+    setShowForm(true);
+  };
 
   function validateAndParseEmails(raw) {
     const parsed = parseGuestEmails(raw);
@@ -1292,12 +1351,22 @@ function ScheduleTab({ upcoming, past, onAdd, onDelete, onJoin, onCopy, download
       return;
     }
     setTimeError("");
-    const emails = validateAndParseEmails(guestEmailsRaw);
-    if (guestEmailError) return;
     const scheduledAt = new Date(`${form.date}T${form.startHour}:${form.startMinute}`).toISOString();
     const endTime     = new Date(`${form.date}T${form.endHour}:${form.endMinute}`).toISOString();
+
+    if (editingId) {
+      await onUpdate(editingId, { title: form.title, scheduledAt, endTime, notes: form.notes, password: form.password, guestTitle: form.guestTitle });
+      setEditingId(null);
+      setForm(blank);
+      setTimeError("");
+      setShowForm(false);
+      return;
+    }
+
+    const emails = validateAndParseEmails(guestEmailsRaw);
+    if (guestEmailError) return;
     const roomCode = form.room.trim().replace(/\s+/g, "-").toLowerCase();
-    onAdd({ id: Date.now(), ...form, room: roomCode, scheduledAt, endTime });
+    onAdd({ id: Date.now(), ...form, room: roomCode, scheduledAt, endTime, guestEmails: emails });
     setForm(blank);
     setTimeError("");
     setGuestEmailsRaw("");
@@ -1389,8 +1458,8 @@ function ScheduleTab({ upcoming, past, onAdd, onDelete, onJoin, onCopy, download
           </div>
           <Label>Room name</Label>
           <div style={{ display: "flex", gap: 8 }}>
-            <input value={form.room} onChange={f("room")} style={{ ...input, flex: 1 }} />
-            <button onClick={() => setForm(p => ({ ...p, room: randomRoom() }))} style={ghostBtn}>Random</button>
+            <input value={form.room} onChange={f("room")} style={{ ...input, flex: 1, opacity: editingId ? .5 : 1 }} disabled={!!editingId} />
+            {!editingId && <button onClick={() => setForm(p => ({ ...p, room: randomRoom() }))} style={ghostBtn}>Random</button>}
           </div>
           <p style={{ fontSize: 11, color: THEME.textHint, marginTop: 4, marginBottom: 16, wordBreak: "break-all" }}>
             Join link: {window.location.origin}/join/{form.room.trim().replace(/\s+/g, "-").toLowerCase()}
@@ -1404,27 +1473,29 @@ function ScheduleTab({ upcoming, past, onAdd, onDelete, onJoin, onCopy, download
             </span>
             <input value={form.password} onChange={f("password")} style={{ ...input, paddingLeft: 34 }} placeholder="Leave blank for no password" />
           </div>
-          <Label>Guest Emails / E-mails dos Convidados (optional)</Label>
-          <input
-            value={guestEmailsRaw}
-            onChange={e => setGuestEmailsRaw(e.target.value)}
-            onBlur={() => validateAndParseEmails(guestEmailsRaw)}
-            style={{ ...input, marginBottom: guestEmailError ? 6 : 16 }}
-            placeholder="guest1@email.com, guest2@email.com"
-          />
-          {guestEmailError && (
-            <p style={{ fontSize: 12, color: "#b91c1c", marginBottom: 16 }}>{guestEmailError}</p>
-          )}
-          <Label>Your Email (Reply-To) / Seu E-mail (optional)</Label>
-          <input
-            value={hostEmail}
-            onChange={e => setHostEmail(e.target.value)}
-            style={{ ...input, marginBottom: 16 }}
-            placeholder="your@email.com"
-          />
+          {!editingId && <>
+            <Label>Guest Emails / E-mails dos Convidados (optional)</Label>
+            <input
+              value={guestEmailsRaw}
+              onChange={e => setGuestEmailsRaw(e.target.value)}
+              onBlur={() => validateAndParseEmails(guestEmailsRaw)}
+              style={{ ...input, marginBottom: guestEmailError ? 6 : 16 }}
+              placeholder="guest1@email.com, guest2@email.com"
+            />
+            {guestEmailError && (
+              <p style={{ fontSize: 12, color: "#b91c1c", marginBottom: 16 }}>{guestEmailError}</p>
+            )}
+            <Label>Your Email (Reply-To) / Seu E-mail (optional)</Label>
+            <input
+              value={hostEmail}
+              onChange={e => setHostEmail(e.target.value)}
+              style={{ ...input, marginBottom: 16 }}
+              placeholder="your@email.com"
+            />
+          </>}
           <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
-            <button onClick={submit} style={primaryBtn} className="action-btn">Schedule Meeting</button>
-            <button onClick={() => { setShowForm(false); setForm(blank); setTimeError(""); setGuestEmailsRaw(""); setGuestEmails([]); setGuestEmailError(""); }} style={ghostBtn}>Cancel</button>
+            <button onClick={submit} style={primaryBtn} className="action-btn">{editingId ? "Save Changes" : "Schedule Meeting"}</button>
+            <button onClick={() => { setShowForm(false); setForm(blank); setTimeError(""); setGuestEmailsRaw(""); setGuestEmails([]); setGuestEmailError(""); setEditingId(null); }} style={ghostBtn}>Cancel</button>
           </div>
         </div>
       )}
@@ -1495,6 +1566,7 @@ function ScheduleTab({ upcoming, past, onAdd, onDelete, onJoin, onCopy, download
               <div style={{ display: "flex", gap: 6, flexShrink: 0, alignItems: "center" }}>
                 <button onClick={() => onCopy(m.room_code, m.room_password)} style={icoBtn} title="Copy invite link"><Icon d={ICONS.copy} size={14} /></button>
                 <CalendarMenu m={m} downloadIcs={downloadIcs} googleCalUrl={googleCalUrl} outlookCalUrl={outlookCalUrl} />
+                <button onClick={() => startEditMeeting(m)} style={icoBtn} title="Edit"><Icon d={ICONS.edit} size={14} /></button>
                 <button onClick={() => onJoin(m.room_code, m.title)} style={{ ...icoBtn, color: "#38bdf8" }} title="Join"><Icon d={ICONS.arrow} size={14} /></button>
                 <button onClick={() => onDelete(m.id)} style={{ ...icoBtn, color: "#ef4444" }} title="Delete"><Icon d={ICONS.trash} size={14} /></button>
               </div>
@@ -1516,6 +1588,7 @@ function ScheduleTab({ upcoming, past, onAdd, onDelete, onJoin, onCopy, download
                 <p style={{ fontSize: 12, color: THEME.textMuted }}>{fmt(m.scheduled_at, timeFmt === '24h')}</p>
               </div>
               <div style={{ display: "flex", gap: 6 }}>
+                <button onClick={() => startEditMeeting(m)} style={icoBtn} title="Edit"><Icon d={ICONS.edit} size={14} /></button>
                 <button onClick={() => onJoin(m.room_code, m.title)} style={{ ...icoBtn, color: "#38bdf8" }} title="Join again"><Icon d={ICONS.arrow} size={14} /></button>
                 <button onClick={() => onDelete(m.id)} style={{ ...icoBtn, color: "#ef4444" }} title="Delete"><Icon d={ICONS.trash} size={14} /></button>
               </div>
