@@ -1176,21 +1176,24 @@ function CalendarMenu({ m, downloadIcs, googleCalUrl, outlookCalUrl }) {
         <Icon d={ICONS.calendar} size={14} />
       </button>
       {open && (
-        <div style={{ position: "absolute", right: 0, top: 36, zIndex: 200, background: THEME.borderCard, border: "1px solid #334155", borderRadius: 10, padding: "6px", minWidth: 220, boxShadow: "0 8px 32px rgba(0,0,0,.5)" }}>
-          <p style={{ fontSize: 10, fontWeight: 600, color: THEME.textHint, textTransform: "uppercase", letterSpacing: ".07em", padding: "4px 10px 8px" }}>Add to calendar</p>
-          <a href={googleCalUrl(m)} target="_blank" rel="noreferrer" onClick={() => setOpen(false)} className="cal-opt"
-            style={{ display: "flex", alignItems: "center", gap: 9, padding: "8px 10px", borderRadius: 7, color: THEME.textMain, textDecoration: "none", fontSize: 13 }}>
-            <span style={{ fontSize: 15 }}>🗓️</span> Google Calendar
-          </a>
-          <a href={outlookCalUrl(m)} target="_blank" rel="noreferrer" onClick={() => setOpen(false)} className="cal-opt"
-            style={{ display: "flex", alignItems: "center", gap: 9, padding: "8px 10px", borderRadius: 7, color: THEME.textMain, textDecoration: "none", fontSize: 13 }}>
-            <span style={{ fontSize: 15 }}>📅</span> Outlook / Microsoft 365
-          </a>
-          <button onClick={() => { downloadIcs(m); setOpen(false); }} className="cal-opt"
-            style={{ display: "flex", alignItems: "center", gap: 9, padding: "8px 10px", borderRadius: 7, color: THEME.textMain, fontSize: 13, width: "100%", background: "transparent" }}>
-            <span style={{ fontSize: 15 }}>📥</span> Apple / Proton / Other (.ics)
-          </button>
-        </div>
+        <>
+          <div style={{ position: "fixed", inset: 0, zIndex: 99 }} onClick={() => setOpen(false)} />
+          <div style={{ position: "absolute", right: 0, top: 36, zIndex: 200, background: THEME.borderCard, border: "1px solid #334155", borderRadius: 10, padding: "6px", minWidth: 220, boxShadow: "0 8px 32px rgba(0,0,0,.5)" }}>
+            <p style={{ fontSize: 10, fontWeight: 600, color: THEME.textHint, textTransform: "uppercase", letterSpacing: ".07em", padding: "4px 10px 8px" }}>Add to calendar</p>
+            <a href={googleCalUrl(m)} target="_blank" rel="noreferrer" onClick={() => setOpen(false)} className="cal-opt"
+              style={{ display: "flex", alignItems: "center", gap: 9, padding: "8px 10px", borderRadius: 7, color: THEME.textMain, textDecoration: "none", fontSize: 13 }}>
+              <span style={{ fontSize: 15 }}>🗓️</span> Google Calendar
+            </a>
+            <a href={outlookCalUrl(m)} target="_blank" rel="noreferrer" onClick={() => setOpen(false)} className="cal-opt"
+              style={{ display: "flex", alignItems: "center", gap: 9, padding: "8px 10px", borderRadius: 7, color: THEME.textMain, textDecoration: "none", fontSize: 13 }}>
+              <span style={{ fontSize: 15 }}>📅</span> Outlook / Microsoft 365
+            </a>
+            <button onClick={() => { downloadIcs(m); setOpen(false); }} className="cal-opt"
+              style={{ display: "flex", alignItems: "center", gap: 9, padding: "8px 10px", borderRadius: 7, color: THEME.textMain, fontSize: 13, width: "100%", background: "transparent" }}>
+              <span style={{ fontSize: 15 }}>📥</span> Apple / Proton / Other (.ics)
+            </button>
+          </div>
+        </>
       )}
     </div>
   );
@@ -1315,8 +1318,9 @@ function CalendarMonthView({ meetings, calYear, calMonth, onPrev, onNext, expand
 
 function ScheduleTab({ upcoming, past, onAdd, onUpdate, onDelete, onCancel, onJoin, onCopy, downloadIcs, googleCalUrl, outlookCalUrl, user, timeFmt, dayStart, dayEnd }) {
   const blank = { title: "", room: randomRoom(), date: "", startHour: "", startMinute: "", endHour: "", endMinute: "", guestTitle: "", notes: "", password: "" };
-  const [timeError, setTimeError] = useState("");
-  const [editingId, setEditingId] = useState(null);
+  const [timeError, setTimeError]           = useState("");
+  const [editingId, setEditingId]           = useState(null);
+  const [confirmCancelId, setConfirmCancelId] = useState(null);
   const [viewMode, setViewMode]   = useState('list');
   const [calYear, setCalYear]     = useState(new Date().getFullYear());
   const [calMonth, setCalMonth]   = useState(new Date().getMonth());
@@ -1617,7 +1621,15 @@ function ScheduleTab({ upcoming, past, onAdd, onUpdate, onDelete, onCancel, onJo
                 <CalendarMenu m={m} downloadIcs={downloadIcs} googleCalUrl={googleCalUrl} outlookCalUrl={outlookCalUrl} />
                 <button onClick={() => startEditMeeting(m)} style={icoBtn} title="Edit"><Icon d={ICONS.edit} size={14} /></button>
                 <button onClick={() => onJoin(m.room_code, m.title)} style={{ ...icoBtn, color: "#38bdf8" }} title="Join"><Icon d={ICONS.arrow} size={14} /></button>
-                <button onClick={() => onCancel(m)} style={{ ...icoBtn, color: "#ef4444" }} title="Cancel"><Icon d={ICONS.trash} size={14} /></button>
+                {confirmCancelId === m.id ? (
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <span style={{ fontSize: 12, color: "#ef4444", fontWeight: 600, whiteSpace: "nowrap" }}>Cancel meeting?</span>
+                    <button onClick={() => { onCancel(m); setConfirmCancelId(null); }} style={{ fontSize: 11, fontWeight: 700, background: "#ef4444", color: "#fff", border: "none", borderRadius: 6, padding: "3px 10px", cursor: "pointer" }}>Yes</button>
+                    <button onClick={() => setConfirmCancelId(null)} style={{ fontSize: 11, fontWeight: 600, background: "transparent", color: THEME.textHint, border: "1px solid rgba(255,255,255,.15)", borderRadius: 6, padding: "3px 10px", cursor: "pointer" }}>Keep</button>
+                  </div>
+                ) : (
+                  <button onClick={() => setConfirmCancelId(m.id)} style={{ ...icoBtn, color: "#ef4444" }} title="Cancel"><Icon d={ICONS.trash} size={14} /></button>
+                )}
               </div>
             </div>
           ))}
