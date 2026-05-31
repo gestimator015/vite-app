@@ -39,7 +39,7 @@ export default async function handler(req, res) {
 
     const { data: meeting, error: meetingErr } = await supabase
       .from("scheduled_meetings")
-      .select("title, scheduled_at, end_time")
+      .select("title, guest_title, scheduled_at, end_time, room_code")
       .eq("id", guest.scheduled_meeting_id)
       .maybeSingle();
 
@@ -47,11 +47,19 @@ export default async function handler(req, res) {
       return res.status(404).json({ error: "Meeting not found" });
     }
 
+    const { data: guestList } = await supabase
+      .from("meeting_guests")
+      .select("email, created_at")
+      .eq("scheduled_meeting_id", guest.scheduled_meeting_id)
+      .order("created_at", { ascending: true });
+
     return res.status(200).json({
-      meetingTitle:   meeting.title,
-      scheduledAt:    meeting.scheduled_at,
-      endTime:        meeting.end_time,
-      currentStatus:  guest.rsvp_status,
+      meetingTitle:  meeting.guest_title || meeting.title,
+      scheduledAt:   meeting.scheduled_at,
+      endTime:       meeting.end_time,
+      joinLink:      `${process.env.VITE_PUBLIC_URL || 'https://vite-app-azure.vercel.app'}/join/${meeting.room_code}`,
+      currentStatus: guest.rsvp_status,
+      participants:  (guestList ?? []).map(p => ({ email: p.email, addedAt: p.created_at })),
     });
   }
 
