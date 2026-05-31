@@ -435,7 +435,7 @@ export default function App({ user }) {
         const { error: guestErr } = await supabase
           .from('meeting_guests')
           .insert(normalized.map(email => ({ scheduled_meeting_id: data.id, email })));
-        if (guestErr) { console.error("meeting_guests insert failed:", guestErr.code, guestErr.message, guestErr.details, guestErr.hint); alert("GUEST INSERT ERROR: " + JSON.stringify(guestErr)); }
+        if (guestErr) console.error("meeting_guests insert failed");
       }
     }
   }, [meetings]);
@@ -1394,6 +1394,9 @@ function ScheduleTab({ upcoming, past, onAdd, onUpdate, onDelete, onJoin, onCopy
             meetingDate: scheduledAt,
             roomCode,
             password: form.password || null,
+            guestTitle: form.guestTitle || '',
+            endTime: endTime,
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
           }),
         });
         const data = await res.json();

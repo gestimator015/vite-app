@@ -8,27 +8,31 @@ function toIcsDate(ms) {
   return new Date(ms).toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
 }
 
-function formatDate(iso) {
+function formatDate(iso, tz) {
   const d = new Date(iso);
+  const opts = tz ? { timeZone: tz } : {};
   return d.toLocaleDateString('en-US', {
-    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
-  }) + ' at ' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', ...opts,
+  }) + ' at ' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', ...opts });
 }
 
-function formatDatePT(iso) {
+function formatDatePT(iso, tz) {
   const d = new Date(iso);
+  const opts = tz ? { timeZone: tz } : {};
   return d.toLocaleDateString('pt-BR', {
-    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
-  }) + ' às ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', ...opts,
+  }) + ' às ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', ...opts });
 }
 
-function generateIcs(title, dateIso, roomCode, password, sequence = 0) {
+function generateIcs(title, dateIso, roomCode, password, sequence = 0, guestTitle = '', endTime = null) {
   const publicUrl = process.env.VITE_PUBLIC_URL || 'https://vite-app-azure.vercel.app';
   const joinLink  = `${publicUrl}/join/${roomCode}`;
   const start     = new Date(dateIso).getTime();
   const dtstart   = toIcsDate(start);
-  const dtend     = toIcsDate(start + DEFAULT_MEETING_DURATION_MS);
+  const end       = endTime ? new Date(endTime).getTime() : start + DEFAULT_MEETING_DURATION_MS;
+  const dtend     = toIcsDate(end);
   const dtstamp   = toIcsDate(Date.now());
+  const summary   = guestTitle || title;
   const desc      = password
     ? `Join: ${joinLink}\\nPassword: ${password}`
     : `Join: ${joinLink}`;
@@ -44,7 +48,7 @@ function generateIcs(title, dateIso, roomCode, password, sequence = 0) {
     `DTSTAMP:${dtstamp}`,
     `ORGANIZER;CN=${SENDER_NAME}:mailto:${SENDER_EMAIL}`,
     `SEQUENCE:${sequence}`,
-    `SUMMARY:${title}`,
+    `SUMMARY:${summary}`,
     `DESCRIPTION:${desc}`,
     `LOCATION:${joinLink}`,
     `UID:${roomCode}@meethub`,
@@ -53,9 +57,9 @@ function generateIcs(title, dateIso, roomCode, password, sequence = 0) {
   ].join('\r\n');
 }
 
-function buildGuestHtml({ hostName, meetingTitle, meetingDate, joinLink, password }) {
-  const dateEN = formatDate(meetingDate);
-  const datePT = formatDatePT(meetingDate);
+function buildGuestHtml({ hostName, meetingTitle, meetingDate, joinLink, password, tz }) {
+  const dateEN = formatDate(meetingDate, tz);
+  const datePT = formatDatePT(meetingDate, tz);
 
   const passwordBlockEN = password
     ? `<p><strong>Password:</strong> ${password}</p>`
@@ -107,9 +111,9 @@ function buildGuestHtml({ hostName, meetingTitle, meetingDate, joinLink, passwor
 </html>`;
 }
 
-function buildHostHtml({ meetingTitle, meetingDate, joinLink, password, guestEmails }) {
-  const dateEN = formatDate(meetingDate);
-  const datePT = formatDatePT(meetingDate);
+function buildHostHtml({ meetingTitle, meetingDate, joinLink, password, guestEmails, tz }) {
+  const dateEN = formatDate(meetingDate, tz);
+  const datePT = formatDatePT(meetingDate, tz);
   const guestList = guestEmails.join(', ');
 
   const passwordBlockEN = password
@@ -174,7 +178,9 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Email service not configured' });
   }
 
-  const { guestEmails, hostEmail, hostName: rawHostName, meetingTitle, meetingDate, roomCode, password, sequence: rawSequence } = req.body;
+  const { guestEmails, hostEmail, hostName: rawHostName, meetingTitle,
+          meetingDate, roomCode, password, sequence: rawSequence,
+          guestTitle, endTime, timezone } = req.body;
   const hostName = rawHostName || hostEmail;
   const sequence = Number.isInteger(rawSequence) && rawSequence >= 0 ? rawSequence : 0;
 
@@ -187,9 +193,10 @@ export default async function handler(req, res) {
 
   const publicUrl    = process.env.VITE_PUBLIC_URL || 'https://vite-app-azure.vercel.app';
   const joinLink     = `${publicUrl}/join/${roomCode}`;
-  const guestSubject = `${hostName} is inviting you to ${meetingTitle} / ${hostName} está te convidando para ${meetingTitle}`;
-  const guestHtml    = buildGuestHtml({ hostName, meetingTitle, meetingDate, joinLink, password });
-  const icsString    = generateIcs(meetingTitle, meetingDate, roomCode, password, sequence);
+  const displayTitle = guestTitle || meetingTitle;
+  const guestSubject = `${hostName} is inviting you to ${displayTitle} / ${hostName} está te convidando para ${displayTitle}`;
+  const guestHtml    = buildGuestHtml({ hostName, meetingTitle: displayTitle, meetingDate, joinLink, password, tz: timezone });
+  const icsString    = generateIcs(meetingTitle, meetingDate, roomCode, password, sequence, guestTitle, endTime);
   const icsBase64    = Buffer.from(icsString).toString('base64');
   const attachment   = [{ content: icsBase64, name: 'meeting.ics' }];
 
@@ -228,7 +235,7 @@ export default async function handler(req, res) {
   // Send confirmation to host
   let hostEmailSent = false;
   try {
-    const hostHtml = buildHostHtml({ meetingTitle, meetingDate, joinLink, password, guestEmails });
+    const hostHtml = buildHostHtml({ meetingTitle, meetingDate, joinLink, password, guestEmails, tz: timezone });
     const hostRes  = await fetch(BREVO_API_URL, {
       method: 'POST',
       headers: { 'api-key': BREVO_API_KEY, 'Content-Type': 'application/json' },
