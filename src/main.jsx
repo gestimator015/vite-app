@@ -6,6 +6,7 @@ import './index.css'
 import App from './App.jsx'
 import Auth from './Auth.jsx'
 import GuestJoin from './GuestJoin.jsx'
+import Rsvp from './Rsvp.jsx'
 
 function SetNewPassword({ onDone }) {
   const [password, setPassword] = useState('')
@@ -69,6 +70,10 @@ function Root() {
 
   if (window.location.pathname.startsWith('/join/')) {
     return <BrowserRouter><Routes><Route path="/join/:roomId" element={<GuestJoin />} /></Routes></BrowserRouter>
+  }
+
+  if (window.location.pathname === '/rsvp') {
+    return <BrowserRouter><Routes><Route path="/rsvp" element={<Rsvp />} /></Routes></BrowserRouter>
   }
 
   if (recovery) return <SetNewPassword onDone={() => setRecovery(false)} />
