@@ -432,12 +432,16 @@ export default function App({ user }) {
       const rawEmails = Array.isArray(m.guestEmails) ? m.guestEmails : [];
       const normalized = [...new Set(rawEmails.map(e => e.trim().toLowerCase()).filter(Boolean))];
       if (normalized.length > 0) {
-        const { error: guestErr } = await supabase
+        const { data: guestData, error: guestErr } = await supabase
           .from('meeting_guests')
-          .insert(normalized.map(email => ({ scheduled_meeting_id: data.id, email })));
+          .insert(normalized.map(email => ({ scheduled_meeting_id: data.id, email })))
+          .select('email, rsvp_token');
         if (guestErr) console.error("meeting_guests insert failed");
+        return guestData ?? [];
       }
+      return [];
     }
+    return [];
   }, [meetings]);
 
   const updateMeeting = useCallback(async (id, updates) => {
@@ -1404,7 +1408,7 @@ function ScheduleTab({ upcoming, past, onAdd, onUpdate, onDelete, onCancel, onJo
     const emails = validateAndParseEmails(guestEmailsRaw);
     if (guestEmailError) return;
     const roomCode = form.room.trim().replace(/\s+/g, "-").toLowerCase();
-    onAdd({ id: Date.now(), ...form, room: roomCode, scheduledAt, endTime, guestEmails: emails });
+    const insertedGuests = await onAdd({ id: Date.now(), ...form, room: roomCode, scheduledAt, endTime, guestEmails: emails });
     setForm(blank);
     setTimeError("");
     setGuestEmailsRaw("");
@@ -1419,6 +1423,7 @@ function ScheduleTab({ upcoming, past, onAdd, onUpdate, onDelete, onCancel, onJo
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             guestEmails: emails,
+            guests: insertedGuests ?? [],
             hostEmail,
             hostName: user?.user_metadata?.full_name || user?.email || '',
             meetingTitle: form.title,
