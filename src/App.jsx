@@ -464,6 +464,37 @@ export default function App({ user }) {
     }
   }, [meetings]);
 
+  const cancelMeeting = useCallback(async (meeting) => {
+    const { data: guests } = await supabase
+      .from('meeting_guests').select('email')
+      .eq('scheduled_meeting_id', meeting.id);
+    const guestEmails = guests?.map(g => g.email) ?? [];
+    const newSeq = (meeting.ics_sequence || 0) + 1;
+    await fetch('/api/cancel-invite', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        guestEmails,
+        hostEmail: user.email,
+        hostName: user.user_metadata?.full_name || user.email,
+        meetingTitle: meeting.title,
+        guestTitle: meeting.guest_title || '',
+        meetingDate: meeting.scheduled_at,
+        endTime: meeting.end_time,
+        roomCode: meeting.room_code,
+        ics_sequence: newSeq,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      }),
+    });
+    await supabase.from('scheduled_meetings')
+      .update({ status: 'cancelled', ics_sequence: newSeq })
+      .eq('id', meeting.id).eq('user_id', user.id);
+    setMeetings(prev => prev.map(m =>
+      m.id === meeting.id ? { ...m, status: 'cancelled', ics_sequence: newSeq } : m
+    ));
+    showToast('Meeting cancelled — guests notified');
+  }, [meetings]);
+
   const deleteMeeting = useCallback(async (id) => {
     const { error } = await supabase
       .from('scheduled_meetings')
@@ -627,7 +658,7 @@ export default function App({ user }) {
         <main style={{ flex: 1, overflowY: "auto", padding: "28px 32px" }}>
           {tab === "quick"     && <QuickJoin     onJoin={joinMeeting} onSave={saveRoom} onCopy={copyLink} joining={joining} />}
           {tab === "recurring" && <RecurringTab  recurring={recurring} onAdd={addRecurring} onEdit={updateRecurring} onDelete={deleteRecurring} onJoin={joinMeeting} onCopy={copyLink} onShare={shareRecurring} showToast={showToast} />}
-          {tab === "schedule"  && <ScheduleTab   upcoming={upcoming} past={past} onAdd={addMeeting} onUpdate={updateMeeting} onDelete={deleteMeeting} onJoin={joinMeeting} onCopy={copyLink} downloadIcs={downloadIcs} googleCalUrl={googleCalUrl} outlookCalUrl={outlookCalUrl} user={user} timeFmt={timeFmt} dayStart={dayStart} dayEnd={dayEnd} />}
+          {tab === "schedule"  && <ScheduleTab   upcoming={upcoming} past={past} onAdd={addMeeting} onUpdate={updateMeeting} onDelete={deleteMeeting} onCancel={cancelMeeting} onJoin={joinMeeting} onCopy={copyLink} downloadIcs={downloadIcs} googleCalUrl={googleCalUrl} outlookCalUrl={outlookCalUrl} user={user} timeFmt={timeFmt} dayStart={dayStart} dayEnd={dayEnd} />}
           {tab === "saved"     && <SavedTab      rooms={savedRooms} onJoin={joinMeeting} onDelete={deleteRoom} onCopy={copyLink} />}
           {tab === "settings" && <SettingsTab user={user} showToast={showToast} timeFmt={timeFmt} dayStart={dayStart} dayEnd={dayEnd} />}
           {tab === "call" && activeCall && <CallTab call={activeCall} onEnd={endCall} iframeRef={iframeRef} />}
@@ -1278,7 +1309,7 @@ function CalendarMonthView({ meetings, calYear, calMonth, onPrev, onNext, expand
   );
 }
 
-function ScheduleTab({ upcoming, past, onAdd, onUpdate, onDelete, onJoin, onCopy, downloadIcs, googleCalUrl, outlookCalUrl, user, timeFmt, dayStart, dayEnd }) {
+function ScheduleTab({ upcoming, past, onAdd, onUpdate, onDelete, onCancel, onJoin, onCopy, downloadIcs, googleCalUrl, outlookCalUrl, user, timeFmt, dayStart, dayEnd }) {
   const blank = { title: "", room: randomRoom(), date: "", startHour: "", startMinute: "", endHour: "", endMinute: "", guestTitle: "", notes: "", password: "" };
   const [timeError, setTimeError] = useState("");
   const [editingId, setEditingId] = useState(null);
@@ -1581,7 +1612,7 @@ function ScheduleTab({ upcoming, past, onAdd, onUpdate, onDelete, onJoin, onCopy
                 <CalendarMenu m={m} downloadIcs={downloadIcs} googleCalUrl={googleCalUrl} outlookCalUrl={outlookCalUrl} />
                 <button onClick={() => startEditMeeting(m)} style={icoBtn} title="Edit"><Icon d={ICONS.edit} size={14} /></button>
                 <button onClick={() => onJoin(m.room_code, m.title)} style={{ ...icoBtn, color: "#38bdf8" }} title="Join"><Icon d={ICONS.arrow} size={14} /></button>
-                <button onClick={() => onDelete(m.id)} style={{ ...icoBtn, color: "#ef4444" }} title="Delete"><Icon d={ICONS.trash} size={14} /></button>
+                <button onClick={() => onCancel(m)} style={{ ...icoBtn, color: "#ef4444" }} title="Cancel"><Icon d={ICONS.trash} size={14} /></button>
               </div>
             </div>
           ))}
