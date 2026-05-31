@@ -346,7 +346,7 @@ export default function App({ user }) {
       setSavedRooms(savedData ?? []);
       const { data: meetData } = await supabase
         .from('scheduled_meetings')
-        .select('id, title, room_code, scheduled_at, end_time, notes, room_password, guest_title')
+        .select('id, title, room_code, scheduled_at, end_time, notes, room_password, guest_title, status, ics_sequence')
         .eq('user_id', user.id)
         .order('scheduled_at', { ascending: true });
       setMeetings(meetData ?? []);
@@ -419,7 +419,7 @@ export default function App({ user }) {
         guest_title: m.guestTitle || null,
         ics_uid: `${m.room}@meethub`,
       })
-      .select('id, title, room_code, scheduled_at, end_time, notes, room_password, guest_title')
+      .select('id, title, room_code, scheduled_at, end_time, notes, room_password, guest_title, status, ics_sequence')
       .single();
     if (!error && data) {
       setMeetings(prev =>
@@ -453,7 +453,7 @@ export default function App({ user }) {
       })
       .eq('id', id)
       .eq('user_id', user.id)
-      .select('id, title, room_code, scheduled_at, end_time, notes, room_password, guest_title')
+      .select('id, title, room_code, scheduled_at, end_time, notes, room_password, guest_title, status, ics_sequence')
       .single();
     if (!error && data) {
       setMeetings(prev =>
@@ -543,8 +543,8 @@ export default function App({ user }) {
     }
   };
 
-  const upcoming = meetings.filter(m => new Date(m.scheduled_at) > Date.now() - 300000).sort((a, b) => new Date(a.scheduled_at) - new Date(b.scheduled_at));
-  const past     = meetings.filter(m => new Date(m.scheduled_at) <= Date.now() - 300000);
+  const upcoming = meetings.filter(m => m.status !== 'cancelled' && new Date(m.scheduled_at) > Date.now() - 300000).sort((a, b) => new Date(a.scheduled_at) - new Date(b.scheduled_at));
+  const past     = meetings.filter(m => m.status === 'cancelled' || new Date(m.scheduled_at) <= Date.now() - 300000);
 
   return (
     <div style={{ minHeight: "100vh", background: THEME.bg, fontFamily: "'DM Sans','Segoe UI',sans-serif", color: THEME.textMain, display: "flex", flexDirection: "column" }}>
@@ -1597,12 +1597,21 @@ function ScheduleTab({ upcoming, past, onAdd, onUpdate, onDelete, onJoin, onCopy
                 <Icon d={ICONS.clock} size={18} />
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={{ fontWeight: 600, fontSize: 14 }}>{m.title}</p>
+                {m.status === 'cancelled' ? (
+                  <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 2 }}>
+                    <p style={{ fontWeight: 600, fontSize: 14, textDecoration: "line-through" }}>{m.title}</p>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: "#ef4444", background: "rgba(239,68,68,.12)", border: "1px solid rgba(239,68,68,.25)", borderRadius: 4, padding: "2px 6px" }}>Cancelled</span>
+                  </div>
+                ) : (
+                  <p style={{ fontWeight: 600, fontSize: 14 }}>{m.title}</p>
+                )}
                 <p style={{ fontSize: 12, color: THEME.textMuted }}>{fmt(m.scheduled_at, timeFmt === '24h')}</p>
               </div>
               <div style={{ display: "flex", gap: 6 }}>
-                <button onClick={() => startEditMeeting(m)} style={icoBtn} title="Edit"><Icon d={ICONS.edit} size={14} /></button>
-                <button onClick={() => onJoin(m.room_code, m.title)} style={{ ...icoBtn, color: "#38bdf8" }} title="Join again"><Icon d={ICONS.arrow} size={14} /></button>
+                {m.status !== 'cancelled' && <>
+                  <button onClick={() => startEditMeeting(m)} style={icoBtn} title="Edit"><Icon d={ICONS.edit} size={14} /></button>
+                  <button onClick={() => onJoin(m.room_code, m.title)} style={{ ...icoBtn, color: "#38bdf8" }} title="Join again"><Icon d={ICONS.arrow} size={14} /></button>
+                </>}
                 <button onClick={() => onDelete(m.id)} style={{ ...icoBtn, color: "#ef4444" }} title="Delete"><Icon d={ICONS.trash} size={14} /></button>
               </div>
             </div>
