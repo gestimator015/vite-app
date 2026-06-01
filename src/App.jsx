@@ -1476,6 +1476,46 @@ function ScheduleTab({ upcoming, past, onAdd, onUpdate, onDelete, onCancel, onJo
 
     if (editingId) {
       await onUpdate(editingId, { title: form.title, scheduledAt, endTime, notes: form.notes, password: form.password, guestTitle: form.guestTitle });
+
+      // Handle new guests
+      const newEmails = validateAndParseEmails(addGuestsRaw);
+      if (newEmails.length > 0) {
+        await onAddGuests({
+          meetingId: editingId,
+          emails: newEmails,
+          meeting: {
+            title:        form.title,
+            guestTitle:   form.guestTitle,
+            scheduledAt,
+            endTime,
+            room:         form.room,
+            password:     form.password,
+            ics_sequence: 0,
+          },
+        });
+      }
+
+      // Handle removed guests
+      const toRemove = editingGuests.filter(g => pendingRemovals.has(g.id));
+      if (toRemove.length > 0) {
+        await onRemoveGuests({
+          meetingId: editingId,
+          guests:    toRemove,
+          meeting: {
+            title:        form.title,
+            guestTitle:   form.guestTitle,
+            scheduledAt,
+            endTime,
+            room:         form.room,
+            password:     form.password,
+            ics_sequence: 0,
+          },
+        });
+      }
+
+      setEditingGuests([]);
+      setPendingRemovals(new Set());
+      setAddGuestsRaw('');
       setEditingId(null);
       setForm(blank);
       setTimeError("");
