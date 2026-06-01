@@ -1379,7 +1379,7 @@ function CalendarMonthView({ meetings, calYear, calMonth, onPrev, onNext, expand
   );
 }
 
-function ScheduleTab({ upcoming, past, onAdd, onUpdate, onDelete, onCancel, onJoin, onCopy, downloadIcs, googleCalUrl, outlookCalUrl, user, timeFmt, dayStart, dayEnd }) {
+function ScheduleTab({ upcoming, past, onAdd, onUpdate, onDelete, onCancel, onJoin, onCopy, downloadIcs, googleCalUrl, outlookCalUrl, user, timeFmt, dayStart, dayEnd, onLoadGuests, onAddGuests, onRemoveGuests }) {
   const blank = { title: "", room: randomRoom(), date: "", startHour: "", startMinute: "", endHour: "", endMinute: "", guestTitle: "", notes: "", password: "" };
   const [timeError, setTimeError]           = useState("");
   const [editingId, setEditingId]           = useState(null);
@@ -1403,9 +1403,13 @@ function ScheduleTab({ upcoming, past, onAdd, onUpdate, onDelete, onCancel, onJo
   const [hostEmail, setHostEmail]       = useState(user?.email || "");
   const [guestEmailError, setGuestEmailError] = useState("");
   const [inviteWarning, setInviteWarning] = useState(false);
+  const [editingGuests, setEditingGuests]       = useState([]);
+  const [pendingRemovals, setPendingRemovals]   = useState(new Set());
+  const [addGuestsRaw, setAddGuestsRaw]         = useState('');
+  const [guestsLoading, setGuestsLoading]       = useState(false);
   const f = k => e => setForm(p => ({ ...p, [k]: e.target.value }));
 
-  const startEditMeeting = (m) => {
+  const startEditMeeting = async (m) => {
     const s = new Date(m.scheduled_at);
     const e = m.end_time ? new Date(m.end_time) : new Date(s.getTime() + 3600000);
     setForm({
@@ -1426,7 +1430,14 @@ function ScheduleTab({ upcoming, past, onAdd, onUpdate, onDelete, onCancel, onJo
     setGuestEmails([]);
     setGuestEmailError('');
     setInviteWarning(false);
+    setConfirmCancelId(null);
+    setPendingRemovals(new Set());
+    setAddGuestsRaw('');
+    setGuestsLoading(true);
     setShowForm(true);
+    const guests = await onLoadGuests(m.id);
+    setEditingGuests(guests);
+    setGuestsLoading(false);
   };
 
   function validateAndParseEmails(raw) {
@@ -1589,6 +1600,49 @@ function ScheduleTab({ upcoming, past, onAdd, onUpdate, onDelete, onCancel, onJo
             </div>
             {!editingId && <button onClick={() => setForm(p => ({ ...p, password: generatePassword() }))} style={ghostBtn}>Generate</button>}
           </div>
+          {editingId && <>
+            {guestsLoading && (
+              <p style={{ fontSize: 12, color: THEME.textHint, marginTop: 12 }}>Loading guests…</p>
+            )}
+            {!guestsLoading && editingGuests.length > 0 && (
+              <div style={{ marginTop: 12 }}>
+                <label style={{ fontSize: 11, fontWeight: 600, color: THEME.textHint, textTransform: 'uppercase', letterSpacing: '.06em' }}>Current Guests</label>
+                {editingGuests.map(g => {
+                  const removing = pendingRemovals.has(g.id);
+                  return (
+                    <div key={g.id} style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6, opacity: removing ? 0.45 : 1 }}>
+                      <span style={{ flex: 1, fontSize: 13, textDecoration: removing ? 'line-through' : 'none', color: THEME.textMain }}>
+                        {g.email}
+                        <span style={{ color: THEME.textHint, fontSize: 11, marginLeft: 6 }}>
+                          · invited {new Date(g.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        </span>
+                      </span>
+                      <button
+                        onClick={() => setPendingRemovals(prev => {
+                          const next = new Set(prev);
+                          removing ? next.delete(g.id) : next.add(g.id);
+                          return next;
+                        })}
+                        style={{ fontSize: 11, fontWeight: 700, background: 'transparent', border: 'none', cursor: 'pointer', color: removing ? THEME.primary : '#ef4444' }}>
+                        {removing ? 'Undo' : '×'}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            {!guestsLoading && (
+              <div style={{ marginTop: 12 }}>
+                <label style={{ fontSize: 11, fontWeight: 600, color: THEME.textHint, textTransform: 'uppercase', letterSpacing: '.06em' }}>Add Guests (Optional)</label>
+                <input
+                  value={addGuestsRaw}
+                  onChange={e => setAddGuestsRaw(e.target.value)}
+                  placeholder="New guest emails, comma separated"
+                  style={{ ...input, marginTop: 6 }}
+                />
+              </div>
+            )}
+          </>}
           {!editingId && <>
             <Label>Guest Emails / E-mails dos Convidados (optional)</Label>
             <input
