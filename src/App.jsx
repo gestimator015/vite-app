@@ -454,6 +454,7 @@ export default function App({ user }) {
         notes: updates.notes,
         room_password: updates.password,
         guest_title: updates.guestTitle || null,
+        ...(updates.ics_sequence != null ? { ics_sequence: updates.ics_sequence } : {}),
       })
       .eq('id', id)
       .eq('user_id', user.id)
@@ -533,7 +534,7 @@ export default function App({ user }) {
           roomCode:     meeting.room,
           password:     meeting.password || '',
           timezone:     Intl.DateTimeFormat().resolvedOptions().timeZone,
-          sequence:     0,
+          sequence:     meeting.ics_sequence ?? 0,
         }),
       });
     }
@@ -1408,6 +1409,7 @@ function ScheduleTab({ upcoming, past, onAdd, onUpdate, onDelete, onCancel, onJo
   const [pendingRemovals, setPendingRemovals]   = useState(new Set());
   const [addGuestsRaw, setAddGuestsRaw]         = useState('');
   const [guestsLoading, setGuestsLoading]       = useState(false);
+  const [editingOriginal, setEditingOriginal]   = useState(null);
   const f = k => e => setForm(p => ({ ...p, [k]: e.target.value }));
 
   const startEditMeeting = async (m) => {
@@ -1426,6 +1428,11 @@ function ScheduleTab({ upcoming, past, onAdd, onUpdate, onDelete, onCancel, onJo
       password: m.room_password || '',
     });
     setEditingId(m.id);
+    setEditingOriginal({
+      scheduledAt:  m.scheduled_at,
+      endTime:      m.end_time || null,
+      ics_sequence: m.ics_sequence || 0,
+    });
     setTimeError('');
     setGuestEmailsRaw('');
     setGuestEmails([]);
@@ -1476,7 +1483,14 @@ function ScheduleTab({ upcoming, past, onAdd, onUpdate, onDelete, onCancel, onJo
     const endTime     = new Date(`${form.date}T${form.endHour}:${form.endMinute}`).toISOString();
 
     if (editingId) {
-      await onUpdate(editingId, { title: form.title, scheduledAt, endTime, notes: form.notes, password: form.password, guestTitle: form.guestTitle });
+      const startChanged   = new Date(scheduledAt).getTime() !== new Date(editingOriginal.scheduledAt).getTime();
+      const origEnd        = editingOriginal.endTime ? new Date(editingOriginal.endTime).getTime() : null;
+      const newEnd         = endTime ? new Date(endTime).getTime() : null;
+      const endChanged     = origEnd !== newEnd;
+      const dateTimeChanged = !!editingOriginal && (startChanged || endChanged);
+      const newSeq         = dateTimeChanged ? (editingOriginal.ics_sequence || 0) + 1 : (editingOriginal.ics_sequence || 0);
+
+      await onUpdate(editingId, { title: form.title, scheduledAt, endTime, notes: form.notes, password: form.password, guestTitle: form.guestTitle, ics_sequence: newSeq });
 
       // Handle new guests
       const existingEmails = new Set(editingGuests.map(g => g.email.toLowerCase()));
@@ -1493,7 +1507,7 @@ function ScheduleTab({ upcoming, past, onAdd, onUpdate, onDelete, onCancel, onJo
             endTime,
             room:         form.room,
             password:     form.password,
-            ics_sequence: 0,
+            ics_sequence: newSeq,
           },
         });
       }
@@ -1511,14 +1525,39 @@ function ScheduleTab({ upcoming, past, onAdd, onUpdate, onDelete, onCancel, onJo
             endTime,
             room:         form.room,
             password:     form.password,
-            ics_sequence: 0,
+            ics_sequence: newSeq,
           },
         });
+      }
+
+      // Send update email to staying guests when date/time changed
+      if (dateTimeChanged) {
+        const stayingGuests = editingGuests.filter(g => !pendingRemovals.has(g.id));
+        if (stayingGuests.length > 0) {
+          await fetch('/api/send-invite', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              guestEmails: stayingGuests.map(g => g.email),
+              hostEmail,
+              hostName:     user?.user_metadata?.full_name || user?.email || '',
+              meetingTitle: form.title,
+              guestTitle:   form.guestTitle || '',
+              meetingDate:  scheduledAt,
+              endTime,
+              roomCode:     form.room,
+              password:     form.password || null,
+              sequence:     newSeq,
+              timezone:     Intl.DateTimeFormat().resolvedOptions().timeZone,
+            }),
+          });
+        }
       }
 
       setEditingGuests([]);
       setPendingRemovals(new Set());
       setAddGuestsRaw('');
+      setEditingOriginal(null);
       setEditingId(null);
       setForm(blank);
       setTimeError("");
