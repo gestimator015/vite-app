@@ -499,6 +499,69 @@ export default function App({ user }) {
     showToast('Meeting cancelled — guests notified');
   }, [meetings]);
 
+  const loadGuestsForMeeting = useCallback(async (meetingId) => {
+    const { data } = await supabase
+      .from('meeting_guests')
+      .select('id, email, created_at')
+      .eq('scheduled_meeting_id', meetingId)
+      .order('created_at', { ascending: true });
+    return data ?? [];
+  }, []);
+
+  const addGuestsToMeeting = useCallback(async ({ meetingId, emails, meeting }) => {
+    const { data: guestData } = await supabase
+      .from('meeting_guests')
+      .upsert(
+        emails.map(email => ({ scheduled_meeting_id: meetingId, email })),
+        { onConflict: 'scheduled_meeting_id,email', ignoreDuplicates: true }
+      )
+      .select('email, rsvp_token');
+    if (guestData?.length > 0) {
+      await fetch('/api/send-invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          guests:       guestData,
+          guestEmails:  emails,
+          hostEmail:    user?.email,
+          hostName:     user?.user_metadata?.full_name || user?.email || '',
+          meetingTitle: meeting.title,
+          guestTitle:   meeting.guestTitle || '',
+          meetingDate:  meeting.scheduledAt,
+          endTime:      meeting.endTime,
+          roomCode:     meeting.room,
+          password:     meeting.password || '',
+          timezone:     Intl.DateTimeFormat().resolvedOptions().timeZone,
+          sequence:     0,
+        }),
+      });
+    }
+  }, [user]);
+
+  const removeGuestsFromMeeting = useCallback(async ({ meetingId, guests, meeting }) => {
+    const targetEmails = guests.map(g => g.email);
+    await fetch('/api/cancel-invite', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        meetingId,
+        targetEmails,
+        hostEmail:    user?.email,
+        hostName:     user?.user_metadata?.full_name || user?.email || '',
+        meetingTitle: meeting.title,
+        guestTitle:   meeting.guestTitle || '',
+        meetingDate:  meeting.scheduledAt,
+        endTime:      meeting.endTime,
+        roomCode:     meeting.room,
+        guestEmails:  targetEmails,
+        ics_sequence: (meeting.ics_sequence || 0) + 1,
+        timezone:     Intl.DateTimeFormat().resolvedOptions().timeZone,
+      }),
+    });
+    const ids = guests.map(g => g.id);
+    await supabase.from('meeting_guests').delete().in('id', ids);
+  }, [user]);
+
   const deleteMeeting = useCallback(async (id) => {
     const { error } = await supabase
       .from('scheduled_meetings')
@@ -662,7 +725,7 @@ export default function App({ user }) {
         <main style={{ flex: 1, overflowY: "auto", padding: "28px 32px" }}>
           {tab === "quick"     && <QuickJoin     onJoin={joinMeeting} onSave={saveRoom} onCopy={copyLink} joining={joining} />}
           {tab === "recurring" && <RecurringTab  recurring={recurring} onAdd={addRecurring} onEdit={updateRecurring} onDelete={deleteRecurring} onJoin={joinMeeting} onCopy={copyLink} onShare={shareRecurring} showToast={showToast} />}
-          {tab === "schedule"  && <ScheduleTab   upcoming={upcoming} past={past} onAdd={addMeeting} onUpdate={updateMeeting} onDelete={deleteMeeting} onCancel={cancelMeeting} onJoin={joinMeeting} onCopy={copyLink} downloadIcs={downloadIcs} googleCalUrl={googleCalUrl} outlookCalUrl={outlookCalUrl} user={user} timeFmt={timeFmt} dayStart={dayStart} dayEnd={dayEnd} />}
+          {tab === "schedule"  && <ScheduleTab   upcoming={upcoming} past={past} onAdd={addMeeting} onUpdate={updateMeeting} onDelete={deleteMeeting} onCancel={cancelMeeting} onJoin={joinMeeting} onCopy={copyLink} downloadIcs={downloadIcs} googleCalUrl={googleCalUrl} outlookCalUrl={outlookCalUrl} user={user} timeFmt={timeFmt} dayStart={dayStart} dayEnd={dayEnd} onLoadGuests={loadGuestsForMeeting} onAddGuests={addGuestsToMeeting} onRemoveGuests={removeGuestsFromMeeting} />}
           {tab === "saved"     && <SavedTab      rooms={savedRooms} onJoin={joinMeeting} onDelete={deleteRoom} onCopy={copyLink} />}
           {tab === "settings" && <SettingsTab user={user} showToast={showToast} timeFmt={timeFmt} dayStart={dayStart} dayEnd={dayEnd} />}
           {tab === "call" && activeCall && <CallTab call={activeCall} onEnd={endCall} iframeRef={iframeRef} />}
