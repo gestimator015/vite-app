@@ -148,7 +148,7 @@ export default async function handler(req, res) {
 
   const { guestEmails, hostEmail, hostName: rawHostName, meetingTitle,
           guestTitle, meetingDate, endTime, roomCode,
-          ics_sequence: rawSequence, timezone } = req.body;
+          ics_sequence: rawSequence, timezone, targetEmails } = req.body;
   const hostName     = rawHostName || hostEmail;
   const sequence     = Number.isInteger(rawSequence) && rawSequence >= 0 ? rawSequence : 0;
   const displayTitle = guestTitle || meetingTitle;
@@ -156,7 +156,10 @@ export default async function handler(req, res) {
   if (!Array.isArray(guestEmails)) {
     return res.status(400).json({ error: 'guestEmails must be an array' });
   }
-  if (guestEmails.length > MAX_GUESTS) {
+  const guestRecipients = Array.isArray(targetEmails) && targetEmails.length > 0
+    ? targetEmails.map(e => ({ email: e }))
+    : guestEmails.map(e => ({ email: e }));
+  if (guestRecipients.length > MAX_GUESTS) {
     return res.status(400).json({ error: 'Too many guests' });
   }
 
@@ -167,7 +170,7 @@ export default async function handler(req, res) {
   const errors = [];
   let sent = 0;
 
-  for (const guestEmail of guestEmails) {
+  for (const r of guestRecipients) {
     try {
       const guestHtml    = buildGuestCancelHtml({ hostName, displayTitle, meetingDate, tz: timezone });
       const guestSubject = `Meeting Cancelled: ${displayTitle} / Reunião Cancelada: ${displayTitle}`;
@@ -177,7 +180,7 @@ export default async function handler(req, res) {
         body: JSON.stringify({
           sender:      { name: SENDER_NAME, email: SENDER_EMAIL },
           replyTo:     { email: hostEmail },
-          to:          [{ email: guestEmail }],
+          to:          [{ email: r.email }],
           subject:     guestSubject,
           htmlContent: guestHtml,
           attachment,
@@ -185,33 +188,35 @@ export default async function handler(req, res) {
       });
       if (!response.ok) {
         const text = await response.text();
-        errors.push({ email: guestEmail, status: response.status, detail: text });
+        errors.push({ email: r.email, status: response.status, detail: text });
       } else {
         sent++;
       }
     } catch (err) {
-      errors.push({ email: guestEmail, detail: err.message });
+      errors.push({ email: r.email, detail: err.message });
     }
   }
 
-  // Send confirmation to host (always, even when guest list is empty)
+  // Send confirmation to host (only for full cancellation, not partial guest removal)
   let hostEmailSent = false;
-  try {
-    const hostHtml = buildHostCancelHtml({ displayTitle, meetingDate, guestEmails, tz: timezone });
-    const hostRes  = await fetch(BREVO_API_URL, {
-      method: 'POST',
-      headers: { 'api-key': BREVO_API_KEY, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        sender:      { name: SENDER_NAME, email: SENDER_EMAIL },
-        to:          [{ email: hostEmail }],
-        subject:     `You cancelled: ${displayTitle} / Você cancelou: ${displayTitle}`,
-        htmlContent: hostHtml,
-        attachment,
-      }),
-    });
-    hostEmailSent = hostRes.ok;
-  } catch {
-    hostEmailSent = false;
+  if (!targetEmails?.length) {
+    try {
+      const hostHtml = buildHostCancelHtml({ displayTitle, meetingDate, guestEmails, tz: timezone });
+      const hostRes  = await fetch(BREVO_API_URL, {
+        method: 'POST',
+        headers: { 'api-key': BREVO_API_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sender:      { name: SENDER_NAME, email: SENDER_EMAIL },
+          to:          [{ email: hostEmail }],
+          subject:     `You cancelled: ${displayTitle} / Você cancelou: ${displayTitle}`,
+          htmlContent: hostHtml,
+          attachment,
+        }),
+      });
+      hostEmailSent = hostRes.ok;
+    } catch {
+      hostEmailSent = false;
+    }
   }
 
   res.setHeader('Cache-Control', 'no-store');
