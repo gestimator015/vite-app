@@ -509,13 +509,14 @@ export default function App({ user }) {
   }, []);
 
   const addGuestsToMeeting = useCallback(async ({ meetingId, emails, meeting }) => {
-    const { data: guestData } = await supabase
+    const { data: guestData, error: guestErr } = await supabase
       .from('meeting_guests')
-      .upsert(
-        emails.map(email => ({ scheduled_meeting_id: meetingId, email })),
-        { onConflict: 'scheduled_meeting_id,email', ignoreDuplicates: true }
-      )
+      .insert(emails.map(email => ({ scheduled_meeting_id: meetingId, email })))
       .select('email, rsvp_token');
+    if (guestErr) {
+      console.error('addGuestsToMeeting insert failed:', guestErr);
+      return;
+    }
     if (guestData?.length > 0) {
       await fetch('/api/send-invite', {
         method: 'POST',
@@ -1478,7 +1479,9 @@ function ScheduleTab({ upcoming, past, onAdd, onUpdate, onDelete, onCancel, onJo
       await onUpdate(editingId, { title: form.title, scheduledAt, endTime, notes: form.notes, password: form.password, guestTitle: form.guestTitle });
 
       // Handle new guests
-      const newEmails = validateAndParseEmails(addGuestsRaw);
+      const existingEmails = new Set(editingGuests.map(g => g.email.toLowerCase()));
+      const newEmails = validateAndParseEmails(addGuestsRaw)
+        .filter(e => !existingEmails.has(e.toLowerCase()));
       if (newEmails.length > 0) {
         await onAddGuests({
           meetingId: editingId,
