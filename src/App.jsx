@@ -1549,6 +1549,7 @@ function ScheduleTab({ upcoming, past, onAdd, onUpdate, onDelete, onCancel, onJo
               password:     form.password || null,
               sequence:     newSeq,
               timezone:     Intl.DateTimeFormat().resolvedOptions().timeZone,
+              isUpdate:     true,
             }),
           });
         }

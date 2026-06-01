@@ -57,7 +57,7 @@ function generateIcs(title, dateIso, roomCode, password, sequence = 0, guestTitl
   ].join('\r\n');
 }
 
-function buildGuestHtml({ hostName, meetingTitle, meetingDate, joinLink, password, tz }) {
+function buildGuestHtml({ hostName, meetingTitle, meetingDate, joinLink, password, tz, isUpdate }) {
   const dateEN = formatDate(meetingDate, tz);
   const datePT = formatDatePT(meetingDate, tz);
 
@@ -77,8 +77,8 @@ function buildGuestHtml({ hostName, meetingTitle, meetingDate, joinLink, passwor
       <p style="margin:0;font-size:22px;font-weight:800;color:#ffffff;letter-spacing:.3px;">MeetHub</p>
     </div>
     <div style="padding:32px;">
-      <h2 style="margin:0 0 8px;font-size:20px;color:#1a2e1a;">You're invited to a meeting</h2>
-      <p style="margin:0 0 24px;font-size:14px;color:#4a6741;">${hostName} has invited you to the following meeting:</p>
+      <h2 style="margin:0 0 8px;font-size:20px;color:#1a2e1a;">${isUpdate ? 'Meeting updated' : "You're invited to a meeting"}</h2>
+      <p style="margin:0 0 24px;font-size:14px;color:#4a6741;">${hostName} ${isUpdate ? 'has updated the following meeting — please note the new time:' : 'has invited you to the following meeting:'}</p>
 
       <div style="background:#f8faf8;border:1px solid #d0e8d8;border-radius:10px;padding:20px 24px;margin-bottom:24px;">
         <p style="margin:0 0 8px;font-size:18px;font-weight:700;color:#1a2e1a;">${meetingTitle}</p>
@@ -91,8 +91,8 @@ function buildGuestHtml({ hostName, meetingTitle, meetingDate, joinLink, passwor
 
       <hr style="border:none;border-top:1px solid #e4ede4;margin:28px 0;">
 
-      <h2 style="margin:0 0 8px;font-size:20px;color:#1a2e1a;">Você foi convidado para uma reunião</h2>
-      <p style="margin:0 0 24px;font-size:14px;color:#4a6741;">${hostName} convidou você para a seguinte reunião:</p>
+      <h2 style="margin:0 0 8px;font-size:20px;color:#1a2e1a;">${isUpdate ? 'Reunião atualizada' : 'Você foi convidado para uma reunião'}</h2>
+      <p style="margin:0 0 24px;font-size:14px;color:#4a6741;">${hostName} ${isUpdate ? 'atualizou a seguinte reunião — veja o novo horário:' : 'convidou você para a seguinte reunião:'}</p>
 
       <div style="background:#f8faf8;border:1px solid #d0e8d8;border-radius:10px;padding:20px 24px;margin-bottom:24px;">
         <p style="margin:0 0 8px;font-size:18px;font-weight:700;color:#1a2e1a;">${meetingTitle}</p>
@@ -180,7 +180,7 @@ export default async function handler(req, res) {
 
   const { guestEmails, guests, hostEmail, hostName: rawHostName, meetingTitle,
           meetingDate, roomCode, password, sequence: rawSequence,
-          guestTitle, endTime, timezone } = req.body;
+          guestTitle, endTime, timezone, isUpdate } = req.body;
   const hostName = rawHostName || hostEmail;
   const sequence = Number.isInteger(rawSequence) && rawSequence >= 0 ? rawSequence : 0;
 
@@ -197,7 +197,9 @@ export default async function handler(req, res) {
   const publicUrl    = process.env.VITE_PUBLIC_URL || 'https://vite-app-azure.vercel.app';
   const joinLink     = `${publicUrl}/join/${roomCode}`;
   const displayTitle = guestTitle || meetingTitle;
-  const guestSubject = `${hostName} is inviting you to ${displayTitle} / ${hostName} está te convidando para ${displayTitle}`;
+  const guestSubject = isUpdate
+    ? `Updated · ${displayTitle} / Atualizado · ${displayTitle}`
+    : `${hostName} is inviting you to ${displayTitle} / ${hostName} está te convidando para ${displayTitle}`;
   const icsString    = generateIcs(meetingTitle, meetingDate, roomCode, password, sequence, guestTitle, endTime);
   const icsBase64    = Buffer.from(icsString).toString('base64');
   const attachment   = [{ content: icsBase64, name: 'meeting.ics' }];
@@ -206,7 +208,7 @@ export default async function handler(req, res) {
   let sent = 0;
 
   for (const r of recipients) {
-    const guestHtml = buildGuestHtml({ hostName, meetingTitle: displayTitle, meetingDate, joinLink, password, tz: timezone });
+    const guestHtml = buildGuestHtml({ hostName, meetingTitle: displayTitle, meetingDate, joinLink, password, tz: timezone, isUpdate });
     try {
       const response = await fetch(BREVO_API_URL, {
         method: 'POST',
@@ -235,24 +237,26 @@ export default async function handler(req, res) {
     return res.status(500).json({ success: false, errors });
   }
 
-  // Send confirmation to host
+  // Send confirmation to host (skipped for updates — host initiated the change)
   let hostEmailSent = false;
-  try {
-    const hostHtml = buildHostHtml({ meetingTitle, meetingDate, joinLink, password, guestEmails, tz: timezone });
-    const hostRes  = await fetch(BREVO_API_URL, {
-      method: 'POST',
-      headers: { 'api-key': BREVO_API_KEY, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        sender:      { name: SENDER_NAME, email: SENDER_EMAIL },
-        to:          [{ email: hostEmail }],
-        subject:     'Your meeting has been scheduled / Sua reunião foi agendada',
-        htmlContent: hostHtml,
-        attachment,
-      }),
-    });
-    hostEmailSent = hostRes.ok;
-  } catch {
-    hostEmailSent = false;
+  if (!isUpdate) {
+    try {
+      const hostHtml = buildHostHtml({ meetingTitle, meetingDate, joinLink, password, guestEmails, tz: timezone });
+      const hostRes  = await fetch(BREVO_API_URL, {
+        method: 'POST',
+        headers: { 'api-key': BREVO_API_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sender:      { name: SENDER_NAME, email: SENDER_EMAIL },
+          to:          [{ email: hostEmail }],
+          subject:     'Your meeting has been scheduled / Sua reunião foi agendada',
+          htmlContent: hostHtml,
+          attachment,
+        }),
+      });
+      hostEmailSent = hostRes.ok;
+    } catch {
+      hostEmailSent = false;
+    }
   }
 
   res.setHeader('Cache-Control', 'no-store');
