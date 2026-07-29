@@ -24,7 +24,7 @@ function formatDatePT(iso, tz) {
   }) + ' às ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', ...opts });
 }
 
-function generateIcs(title, dateIso, roomCode, password, sequence = 0, guestTitle = '', endTime = null) {
+function generateIcs(title, dateIso, roomCode, password, sequence = 0, guestTitle = '', endTime = null, attendees = []) {
   const publicUrl = process.env.VITE_PUBLIC_URL || 'https://vite-app-azure.vercel.app';
   const joinLink  = `${publicUrl}/join/${roomCode}`;
   const start     = new Date(dateIso).getTime();
@@ -36,6 +36,9 @@ function generateIcs(title, dateIso, roomCode, password, sequence = 0, guestTitl
   const desc      = password
     ? `Join: ${joinLink}\\nPassword: ${password}`
     : `Join: ${joinLink}`;
+  const attendeeLines = (attendees || [])
+    .filter(Boolean)
+    .map(email => `ATTENDEE;CN=${email};ROLE=REQ-PARTICIPANT;PARTSTAT=NEEDS-ACTION;RSVP=TRUE:mailto:${email}`);
 
   return [
     'BEGIN:VCALENDAR',
@@ -47,6 +50,7 @@ function generateIcs(title, dateIso, roomCode, password, sequence = 0, guestTitl
     `DTEND:${dtend}`,
     `DTSTAMP:${dtstamp}`,
     `ORGANIZER;CN=${SENDER_NAME}:mailto:${SENDER_EMAIL}`,
+    ...attendeeLines,
     `SEQUENCE:${sequence}`,
     `SUMMARY:${summary}`,
     `DESCRIPTION:${desc}`,
@@ -200,7 +204,7 @@ export default async function handler(req, res) {
   const guestSubject = isUpdate
     ? `${displayTitle} — Updated`
     : `${displayTitle} — Invitation`;
-  const icsString    = generateIcs(meetingTitle, meetingDate, roomCode, password, sequence, guestTitle, endTime);
+  const icsString    = generateIcs(meetingTitle, meetingDate, roomCode, password, sequence, guestTitle, endTime, recipients.map(r => r.email));
   const icsBase64    = Buffer.from(icsString).toString('base64');
   const attachment   = [{ content: icsBase64, name: 'meeting.ics' }];
 

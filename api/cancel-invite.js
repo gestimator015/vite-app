@@ -24,12 +24,15 @@ function formatDatePT(iso, tz) {
   }) + ' às ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', ...opts });
 }
 
-function generateCancelIcs(title, dateIso, roomCode, sequence, endTime) {
+function generateCancelIcs(title, dateIso, roomCode, sequence, endTime, attendees = []) {
   const start    = new Date(dateIso).getTime();
   const dtstart  = toIcsDate(start);
   const end      = endTime ? new Date(endTime).getTime() : start + DEFAULT_MEETING_DURATION_MS;
   const dtend    = toIcsDate(end);
   const dtstamp  = toIcsDate(Date.now());
+  const attendeeLines = (attendees || [])
+    .filter(Boolean)
+    .map(email => `ATTENDEE;CN=${email};ROLE=REQ-PARTICIPANT;PARTSTAT=NEEDS-ACTION;RSVP=TRUE:mailto:${email}`);
 
   return [
     'BEGIN:VCALENDAR',
@@ -41,6 +44,7 @@ function generateCancelIcs(title, dateIso, roomCode, sequence, endTime) {
     `DTEND:${dtend}`,
     `DTSTAMP:${dtstamp}`,
     `ORGANIZER;CN=${SENDER_NAME}:mailto:${SENDER_EMAIL}`,
+    ...attendeeLines,
     `SEQUENCE:${sequence}`,
     'STATUS:CANCELLED',
     `SUMMARY:${title}`,
@@ -163,7 +167,7 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Too many guests' });
   }
 
-  const icsString  = generateCancelIcs(displayTitle, meetingDate, roomCode, sequence, endTime);
+  const icsString  = generateCancelIcs(displayTitle, meetingDate, roomCode, sequence, endTime, guestRecipients.map(r => r.email));
   const icsBase64  = Buffer.from(icsString).toString('base64');
   const attachment = [{ content: icsBase64, name: 'cancel.ics' }];
 
