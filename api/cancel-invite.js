@@ -1,5 +1,5 @@
 const BREVO_API_URL             = 'https://api.brevo.com/v3/smtp/email';
-const SENDER_NAME               = 'Metroa I.S.';
+const SENDER_NAME               = 'MeetHub';
 const SENDER_EMAIL              = 'gustavogrellavieira@gmail.com';
 const MAX_GUESTS                = 20;
 const DEFAULT_MEETING_DURATION_MS = 60 * 60 * 1000;
@@ -173,7 +173,7 @@ export default async function handler(req, res) {
   for (const r of guestRecipients) {
     try {
       const guestHtml    = buildGuestCancelHtml({ hostName, displayTitle, meetingDate, tz: timezone });
-      const guestSubject = `Meeting Cancelled: ${displayTitle} / Reunião Cancelada: ${displayTitle}`;
+      const guestSubject = `${displayTitle} — Cancelled`;
       const response     = await fetch(BREVO_API_URL, {
         method: 'POST',
         headers: { 'api-key': BREVO_API_KEY, 'Content-Type': 'application/json' },
@@ -208,7 +208,7 @@ export default async function handler(req, res) {
         body: JSON.stringify({
           sender:      { name: SENDER_NAME, email: SENDER_EMAIL },
           to:          [{ email: hostEmail }],
-          subject:     `You cancelled: ${displayTitle} / Você cancelou: ${displayTitle}`,
+          subject:     `${displayTitle} — Cancelled (organizer copy)`,
           htmlContent: hostHtml,
           attachment,
         }),

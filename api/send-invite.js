@@ -1,5 +1,5 @@
 const BREVO_API_URL             = 'https://api.brevo.com/v3/smtp/email';
-const SENDER_NAME               = 'Metroa I.S.';
+const SENDER_NAME               = 'MeetHub';
 const SENDER_EMAIL              = 'gustavogrellavieira@gmail.com';
 const MAX_GUESTS                = 20;
 const DEFAULT_MEETING_DURATION_MS = 60 * 60 * 1000;
@@ -198,8 +198,8 @@ export default async function handler(req, res) {
   const joinLink     = `${publicUrl}/join/${roomCode}`;
   const displayTitle = guestTitle || meetingTitle;
   const guestSubject = isUpdate
-    ? `Updated · ${displayTitle} / Atualizado · ${displayTitle}`
-    : `${hostName} is inviting you to ${displayTitle} / ${hostName} está te convidando para ${displayTitle}`;
+    ? `${displayTitle} — Updated`
+    : `${displayTitle} — Invitation`;
   const icsString    = generateIcs(meetingTitle, meetingDate, roomCode, password, sequence, guestTitle, endTime);
   const icsBase64    = Buffer.from(icsString).toString('base64');
   const attachment   = [{ content: icsBase64, name: 'meeting.ics' }];
