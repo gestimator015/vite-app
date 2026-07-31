@@ -535,6 +535,7 @@ export default function App({ user }) {
           password:     meeting.password || '',
           timezone:     Intl.DateTimeFormat().resolvedOptions().timeZone,
           sequence:     meeting.ics_sequence ?? 0,
+          notes:        meeting.notes || '',
         }),
       });
     }
@@ -1508,6 +1509,7 @@ function ScheduleTab({ upcoming, past, onAdd, onUpdate, onDelete, onCancel, onJo
             room:         form.room,
             password:     form.password,
             ics_sequence: newSeq,
+            notes:        form.notes,
           },
         });
       }
@@ -1550,6 +1552,7 @@ function ScheduleTab({ upcoming, past, onAdd, onUpdate, onDelete, onCancel, onJo
               sequence:     newSeq,
               timezone:     Intl.DateTimeFormat().resolvedOptions().timeZone,
               isUpdate:     true,
+              notes:        form.notes || '',
             }),
           });
         }
@@ -1594,6 +1597,7 @@ function ScheduleTab({ upcoming, past, onAdd, onUpdate, onDelete, onCancel, onJo
             guestTitle: form.guestTitle || '',
             endTime: endTime,
             timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+            notes: form.notes || '',
           }),
         });
         const data = await res.json();

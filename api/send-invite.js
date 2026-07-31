@@ -24,7 +24,7 @@ function formatDatePT(iso, tz) {
   }) + ' às ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', ...opts });
 }
 
-function generateIcs(title, dateIso, roomCode, password, sequence = 0, guestTitle = '', endTime = null, attendees = []) {
+function generateIcs(title, dateIso, roomCode, password, sequence = 0, guestTitle = '', endTime = null, attendees = [], notes = '') {
   const publicUrl = process.env.VITE_PUBLIC_URL || 'https://vite-app-azure.vercel.app';
   const joinLink  = `${publicUrl}/join/${roomCode}`;
   const start     = new Date(dateIso).getTime();
@@ -33,9 +33,10 @@ function generateIcs(title, dateIso, roomCode, password, sequence = 0, guestTitl
   const dtend     = toIcsDate(end);
   const dtstamp   = toIcsDate(Date.now());
   const summary   = guestTitle || title;
+  const notesLine = notes ? `\\n\\n${notes}` : '';
   const desc      = password
-    ? `Join: ${joinLink}\\nPassword: ${password}`
-    : `Join: ${joinLink}`;
+    ? `Join: ${joinLink}\\nPassword: ${password}${notesLine}`
+    : `Join: ${joinLink}${notesLine}`;
   const attendeeLines = (attendees || [])
     .filter(Boolean)
     .map(email => `ATTENDEE;CN=${email};ROLE=REQ-PARTICIPANT;PARTSTAT=NEEDS-ACTION;RSVP=TRUE:mailto:${email}`);
@@ -61,7 +62,7 @@ function generateIcs(title, dateIso, roomCode, password, sequence = 0, guestTitl
   ].join('\r\n');
 }
 
-function buildGuestHtml({ hostName, meetingTitle, meetingDate, joinLink, password, tz, isUpdate }) {
+function buildGuestHtml({ hostName, meetingTitle, meetingDate, joinLink, password, tz, isUpdate, notes }) {
   const dateEN = formatDate(meetingDate, tz);
   const datePT = formatDatePT(meetingDate, tz);
 
@@ -90,6 +91,7 @@ function buildGuestHtml({ hostName, meetingTitle, meetingDate, joinLink, passwor
         ${passwordBlockEN}
       </div>
 
+      ${notes ? `<p style="margin:0 0 20px;font-size:13px;color:#4a6741;white-space:pre-wrap;">${notes}</p>` : ''}
       <a href="${joinLink}" style="display:inline-block;background:#0F6E56;color:#ffffff;text-decoration:none;padding:13px 28px;border-radius:10px;font-size:15px;font-weight:600;margin-bottom:20px;">Join Meeting</a>
       <p style="font-size:12px;color:#7a9e7a;word-break:break-all;">Or copy this link: ${joinLink}</p>
 
@@ -104,6 +106,7 @@ function buildGuestHtml({ hostName, meetingTitle, meetingDate, joinLink, passwor
         ${passwordBlockPT}
       </div>
 
+      ${notes ? `<p style="margin:0 0 20px;font-size:13px;color:#4a6741;white-space:pre-wrap;">${notes}</p>` : ''}
       <a href="${joinLink}" style="display:inline-block;background:#0F6E56;color:#ffffff;text-decoration:none;padding:13px 28px;border-radius:10px;font-size:15px;font-weight:600;margin-bottom:20px;">Entrar na Reunião</a>
       <p style="font-size:12px;color:#7a9e7a;word-break:break-all;">Ou copie este link: ${joinLink}</p>
     </div>
@@ -184,7 +187,7 @@ export default async function handler(req, res) {
 
   const { guestEmails, guests, hostEmail, hostName: rawHostName, meetingTitle,
           meetingDate, roomCode, password, sequence: rawSequence,
-          guestTitle, endTime, timezone, isUpdate } = req.body;
+          guestTitle, endTime, timezone, isUpdate, notes } = req.body;
   const hostName = rawHostName || hostEmail;
   const sequence = Number.isInteger(rawSequence) && rawSequence >= 0 ? rawSequence : 0;
 
@@ -204,7 +207,7 @@ export default async function handler(req, res) {
   const guestSubject = isUpdate
     ? `${displayTitle} — Updated`
     : `${displayTitle} — Invitation`;
-  const icsString    = generateIcs(meetingTitle, meetingDate, roomCode, password, sequence, guestTitle, endTime, recipients.map(r => r.email));
+  const icsString    = generateIcs(meetingTitle, meetingDate, roomCode, password, sequence, guestTitle, endTime, recipients.map(r => r.email), notes);
   const icsBase64    = Buffer.from(icsString).toString('base64');
   const attachment   = [{ content: icsBase64, name: 'meeting.ics' }];
 
@@ -212,7 +215,7 @@ export default async function handler(req, res) {
   let sent = 0;
 
   for (const r of recipients) {
-    const guestHtml = buildGuestHtml({ hostName, meetingTitle: displayTitle, meetingDate, joinLink, password, tz: timezone, isUpdate });
+    const guestHtml = buildGuestHtml({ hostName, meetingTitle: displayTitle, meetingDate, joinLink, password, tz: timezone, isUpdate, notes });
     try {
       const response = await fetch(BREVO_API_URL, {
         method: 'POST',
