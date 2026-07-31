@@ -52,7 +52,7 @@ const outlookCalUrl = (m) => {
 };
 const downloadIcs = (m) => {
   const s = toCalDate(m.scheduled_at), e = toCalDate(calEnd(m));
-  const content = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//MeetHub//EN", "BEGIN:VEVENT",
+  const content = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Videoconferencing//EN", "BEGIN:VEVENT",
     `DTSTART:${s}`, `DTEND:${e}`, `SUMMARY:${m.title}`,
     `DESCRIPTION:Join at ${meetUrl(m.room_code)}\\n\\n${m.notes || ""}`,
     `LOCATION:${meetUrl(m.room_code)}`, `UID:${m.id}@meethub`,
@@ -636,7 +636,7 @@ export default function App({ user }) {
   const shareRecurring = (room, title) => {
     const url = `${window.location.origin}/join/${room}`;
     if (navigator.share) {
-      navigator.share({ title: `Join ${title}`, text: `Join me on MeetHub: ${title}`, url })
+      navigator.share({ title: `Join ${title}`, text: `Join me on Videoconferencing: ${title}`, url })
         .catch(() => navigator.clipboard.writeText(url).then(() => showToast("Invite link copied!")));
     } else {
       navigator.clipboard.writeText(url).then(() => showToast("Invite link copied!"));
@@ -684,8 +684,8 @@ export default function App({ user }) {
           <div style={{ width: 32, height: 32, borderRadius: 9, background: "linear-gradient(135deg,#0ea5e9,#6366f1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
             <Icon d={ICONS.video} size={16} stroke="#fff" />
           </div>
-          <span style={{ fontFamily: "Syne", fontWeight: 700, fontSize: 17 }}>MeetHub</span>
-          <span style={{ fontSize: 11, color: THEME.textHint, marginLeft: 2 }}>· Jitsi</span>
+          <span style={{ fontFamily: "Syne", fontWeight: 700, fontSize: 17 }}>Videoconferencing</span>
+          <span style={{ fontSize: 9, color: THEME.textHint, opacity: 0.6, marginLeft: 4, alignSelf: "flex-end", marginBottom: 3 }}>beta</span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           {activeCall && (

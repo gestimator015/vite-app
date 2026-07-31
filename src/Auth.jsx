@@ -81,7 +81,8 @@ export default function Auth() {
           <div style={{
             fontFamily: "'Syne','Segoe UI',sans-serif", fontWeight: 800,
             fontSize: 24, color: THEME.primary, letterSpacing: '.3px',
-          }}>MeetHub</div>
+          }}>Videoconferencing</div>
+          <div style={{ fontSize: 10, color: THEME.textHint, opacity: 0.6, marginTop: 2, letterSpacing: '.5px' }}>beta version</div>
         </div>
 
         {/* Tabs */}

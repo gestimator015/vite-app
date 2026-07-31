@@ -103,7 +103,8 @@ export default function GuestJoin() {
           }}>
             <Icon d={I.video} size={24} stroke="#fff" />
           </div>
-          <div style={{ fontFamily: "Syne", fontWeight: 800, fontSize: 22, letterSpacing: ".3px", color: "#1a2e1a" }}>MeetHub</div>
+          <div style={{ fontFamily: "Syne", fontWeight: 800, fontSize: 22, letterSpacing: ".3px", color: "#1a2e1a" }}>Videoconferencing</div>
+          <div style={{ fontSize: 10, color: "#4a6741", opacity: 0.6, marginTop: 2 }}>beta version</div>
           <p style={{ color: "#4a6741", fontSize: 13, marginTop: 4 }}>You've been invited to a meeting</p>
         </div>
 
@@ -195,7 +196,7 @@ export default function GuestJoin() {
         </div>
 
         <p style={{ textAlign: "center", fontSize: 11, color: "#d0e8d8", marginTop: 24 }}>
-          Powered by MeetHub · Jitsi as a Service
+          Powered by Videoconferencing · Jitsi as a Service
         </p>
       </div>
     </div>

@@ -88,7 +88,8 @@ export default function Rsvp() {
 
       {/* Header */}
       <div style={{ background: '#0F6E56', padding: '18px 0', textAlign: 'center' }}>
-        <span style={{ fontFamily: 'Syne', fontWeight: 800, fontSize: 20, color: '#ffffff', letterSpacing: '.3px' }}>MeetHub</span>
+        <span style={{ fontFamily: 'Syne', fontWeight: 800, fontSize: 20, color: '#ffffff', letterSpacing: '.3px' }}>Videoconferencing</span>
+        <div style={{ fontSize: 9, color: '#ffffff', opacity: 0.6, marginTop: 2, letterSpacing: '.5px' }}>beta version</div>
       </div>
 
       <div style={{ maxWidth: 480, margin: '0 auto', padding: '32px 24px' }}>
@@ -162,7 +163,7 @@ export default function Rsvp() {
         )}
 
         <p style={{ textAlign: 'center', fontSize: 11, color: '#d0e8d8', marginTop: 28 }}>
-          Powered by MeetHub · Jitsi as a Service
+          Powered by Videoconferencing · Jitsi as a Service
         </p>
       </div>
     </div>
