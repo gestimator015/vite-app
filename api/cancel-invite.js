@@ -1,6 +1,6 @@
 const BREVO_API_URL             = 'https://api.brevo.com/v3/smtp/email';
-const SENDER_NAME               = 'MeetHub';
-const SENDER_EMAIL              = 'gustavogrellavieira@gmail.com';
+const SENDER_NAME               = 'Videoconferencing';
+const SENDER_EMAIL              = 'u683080@gmail.com';
 const MAX_GUESTS                = 20;
 const DEFAULT_MEETING_DURATION_MS = 60 * 60 * 1000;
 
@@ -37,7 +37,7 @@ function generateCancelIcs(title, dateIso, roomCode, sequence, endTime, attendee
   return [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//MeetHub//EN',
+    'PRODID:-//Videoconferencing//EN',
     'METHOD:CANCEL',
     'BEGIN:VEVENT',
     `DTSTART:${dtstart}`,
@@ -64,7 +64,7 @@ function buildGuestCancelHtml({ hostName, displayTitle, meetingDate, tz }) {
 <body style="font-family:'Segoe UI',Arial,sans-serif;background:#f4f4f4;margin:0;padding:24px;">
   <div style="max-width:520px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.08);">
     <div style="background:#b91c1c;padding:28px 32px;">
-      <p style="margin:0;font-size:22px;font-weight:800;color:#ffffff;letter-spacing:.3px;">MeetHub</p>
+      <p style="margin:0;font-size:22px;font-weight:800;color:#ffffff;letter-spacing:.3px;">Videoconferencing</p>
     </div>
     <div style="padding:32px;">
       <h2 style="margin:0 0 8px;font-size:20px;color:#1a2e1a;">Meeting Cancelled</h2>
@@ -90,7 +90,7 @@ function buildGuestCancelHtml({ hostName, displayTitle, meetingDate, tz }) {
       <p style="font-size:13px;color:#7a9e7a;">Este evento foi removido do seu calendário.</p>
     </div>
     <div style="background:#f8faf8;padding:16px 32px;text-align:center;">
-      <p style="margin:0;font-size:11px;color:#7a9e7a;">Powered by MeetHub · Jitsi as a Service</p>
+      <p style="margin:0;font-size:11px;color:#7a9e7a;">Powered by Videoconferencing · Jitsi as a Service</p>
     </div>
   </div>
 </body>
@@ -109,7 +109,7 @@ function buildHostCancelHtml({ displayTitle, meetingDate, guestEmails, tz }) {
 <body style="font-family:'Segoe UI',Arial,sans-serif;background:#f4f4f4;margin:0;padding:24px;">
   <div style="max-width:520px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.08);">
     <div style="background:#b91c1c;padding:28px 32px;">
-      <p style="margin:0;font-size:22px;font-weight:800;color:#ffffff;letter-spacing:.3px;">MeetHub</p>
+      <p style="margin:0;font-size:22px;font-weight:800;color:#ffffff;letter-spacing:.3px;">Videoconferencing</p>
     </div>
     <div style="padding:32px;">
       <h2 style="margin:0 0 8px;font-size:20px;color:#1a2e1a;">You cancelled a meeting</h2>
@@ -133,7 +133,7 @@ function buildHostCancelHtml({ displayTitle, meetingDate, guestEmails, tz }) {
       </div>
     </div>
     <div style="background:#f8faf8;padding:16px 32px;text-align:center;">
-      <p style="margin:0;font-size:11px;color:#7a9e7a;">Powered by MeetHub · Jitsi as a Service</p>
+      <p style="margin:0;font-size:11px;color:#7a9e7a;">Powered by Videoconferencing · Jitsi as a Service</p>
     </div>
   </div>
 </body>

@@ -1,6 +1,6 @@
 const BREVO_API_URL             = 'https://api.brevo.com/v3/smtp/email';
-const SENDER_NAME               = 'MeetHub';
-const SENDER_EMAIL              = 'gustavogrellavieira@gmail.com';
+const SENDER_NAME               = 'Videoconferencing';
+const SENDER_EMAIL              = 'u683080@gmail.com';
 const MAX_GUESTS                = 20;
 const DEFAULT_MEETING_DURATION_MS = 60 * 60 * 1000;
 
@@ -43,7 +43,7 @@ function generateIcs(title, dateIso, roomCode, password, sequence = 0, guestTitl
   return [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//MeetHub//EN',
+    'PRODID:-//Videoconferencing//EN',
     'METHOD:REQUEST',
     'BEGIN:VEVENT',
     `DTSTART:${dtstart}`,
@@ -78,7 +78,7 @@ function buildGuestHtml({ hostName, meetingTitle, meetingDate, joinLink, passwor
 <body style="font-family:'Segoe UI',Arial,sans-serif;background:#f4f4f4;margin:0;padding:24px;">
   <div style="max-width:520px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.08);">
     <div style="background:#0F6E56;padding:28px 32px;">
-      <p style="margin:0;font-size:22px;font-weight:800;color:#ffffff;letter-spacing:.3px;">MeetHub</p>
+      <p style="margin:0;font-size:22px;font-weight:800;color:#ffffff;letter-spacing:.3px;">Videoconferencing</p>
     </div>
     <div style="padding:32px;">
       <h2 style="margin:0 0 8px;font-size:20px;color:#1a2e1a;">${isUpdate ? 'Meeting updated' : "You're invited to a meeting"}</h2>
@@ -108,7 +108,7 @@ function buildGuestHtml({ hostName, meetingTitle, meetingDate, joinLink, passwor
       <p style="font-size:12px;color:#7a9e7a;word-break:break-all;">Ou copie este link: ${joinLink}</p>
     </div>
     <div style="background:#f8faf8;padding:16px 32px;text-align:center;">
-      <p style="margin:0;font-size:11px;color:#7a9e7a;">Powered by MeetHub · Jitsi as a Service</p>
+      <p style="margin:0;font-size:11px;color:#7a9e7a;">Powered by Videoconferencing · Jitsi as a Service</p>
     </div>
   </div>
 </body>
@@ -133,7 +133,7 @@ function buildHostHtml({ meetingTitle, meetingDate, joinLink, password, guestEma
 <body style="font-family:'Segoe UI',Arial,sans-serif;background:#f4f4f4;margin:0;padding:24px;">
   <div style="max-width:520px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.08);">
     <div style="background:#0F6E56;padding:28px 32px;">
-      <p style="margin:0;font-size:22px;font-weight:800;color:#ffffff;letter-spacing:.3px;">MeetHub</p>
+      <p style="margin:0;font-size:22px;font-weight:800;color:#ffffff;letter-spacing:.3px;">Videoconferencing</p>
     </div>
     <div style="padding:32px;">
       <h2 style="margin:0 0 8px;font-size:20px;color:#1a2e1a;">Your meeting has been scheduled</h2>
@@ -165,7 +165,7 @@ function buildHostHtml({ meetingTitle, meetingDate, joinLink, password, guestEma
       <p style="font-size:12px;color:#7a9e7a;word-break:break-all;">Ou copie este link: ${joinLink}</p>
     </div>
     <div style="background:#f8faf8;padding:16px 32px;text-align:center;">
-      <p style="margin:0;font-size:11px;color:#7a9e7a;">Powered by MeetHub · Jitsi as a Service</p>
+      <p style="margin:0;font-size:11px;color:#7a9e7a;">Powered by Videoconferencing · Jitsi as a Service</p>
     </div>
   </div>
 </body>
